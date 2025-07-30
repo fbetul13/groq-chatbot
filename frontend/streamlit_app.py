@@ -244,18 +244,7 @@ base_css = """
         margin-top: 0.5rem;
     }
     
-    .stButton > button {
-        background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
-        color: white;
-        border: none;
-        border-radius: 25px;
-        padding: 0.5rem 2rem;
-        font-weight: bold;
-    }
-    
-    .stButton > button:hover {
-        background: linear-gradient(90deg, #5a6fd8 0%, #6a4190 100%);
-    }
+
     
     /* Avatar buton stilleri */
     .avatar-button {
@@ -279,18 +268,9 @@ base_css = """
         background: rgba(102, 126, 234, 0.2);
     }
     
-    /* Seçili avatar vurgulama */
-    .stButton > button[data-testid*="user_avatar"]:has-text("${st.session_state.user_avatar}") {
-        background-color: #667eea !important;
-        color: white !important;
-        border: 2px solid #667eea !important;
-    }
+
     
-    .stButton > button[data-testid*="bot_avatar"]:has-text("${st.session_state.bot_avatar}") {
-        background-color: #667eea !important;
-        color: white !important;
-        border: 2px solid #667eea !important;
-    }
+
     
     .session-item {
         padding: 0.5rem;
@@ -847,12 +827,67 @@ else:
             st.session_state.api_url = api_url
             st.success("API URL güncellendi!")
         
+        # Model seçimi - daha açıklayıcı
+        st.markdown("## 🤖 AI Model Seçimi")
+        
+        # Model bilgileri
+        model_info = {
+            "llama3-8b-8192": {
+                "name": "Llama 3.1 8B",
+                "description": "Meta'nın en yeni açık kaynak modeli",
+                "strengths": "Genel bilgi, kodlama, yaratıcılık",
+                "speed": "Hızlı",
+                "context": "8K token",
+                "icon": "🦙"
+            },
+            "mixtral-8x7b-32768": {
+                "name": "Mixtral 8x7B",
+                "description": "Mistral AI'nin güçlü karışım uzmanı modeli",
+                "strengths": "Karmaşık görevler, analiz, çok dilli",
+                "speed": "Orta",
+                "context": "32K token",
+                "icon": "🌪️"
+            },
+            "gemma2-9b-it": {
+                "name": "Gemma 2 9B",
+                "description": "Google'ın eğitim odaklı modeli",
+                "strengths": "Eğitim, açıklama, öğretim",
+                "speed": "Hızlı",
+                "context": "8K token",
+                "icon": "💎"
+            }
+        }
+        
         # Model seçimi
         model = st.selectbox(
-            "Model",
+            "🤖 AI Model Seçin:",
             ["llama3-8b-8192", "mixtral-8x7b-32768", "gemma2-9b-it"],
-            help="Kullanılacak AI modeli"
+            format_func=lambda x: f"{model_info[x]['icon']} {model_info[x]['name']}",
+            help="Kullanılacak AI modelini seçin"
         )
+        
+        # Seçili model hakkında detaylı bilgi
+        selected_model = model_info[model]
+        
+        st.markdown(f"""
+        ### 📋 {selected_model['icon']} {selected_model['name']}
+        
+        **📝 Açıklama:** {selected_model['description']}
+        
+        **💪 Güçlü Yanları:** {selected_model['strengths']}
+        
+        **⚡ Hız:** {selected_model['speed']}
+        
+        **🧠 Bağlam:** {selected_model['context']}
+        """)
+        
+        # Model önerisi
+        if model == "llama3-8b-8192":
+            st.info("💡 **Öneri:** Genel sohbet ve kodlama için ideal")
+        elif model == "mixtral-8x7b-32768":
+            st.info("💡 **Öneri:** Karmaşık analiz ve uzun metinler için ideal")
+        elif model == "gemma2-9b-it":
+            st.info("💡 **Öneri:** Eğitim ve öğretim için ideal")
         
         # Sıcaklık ayarı
         temperature = st.slider(
