@@ -16,6 +16,184 @@ st.set_page_config(
     initial_sidebar_state="collapsed"
 )
 
+# Tema fonksiyonları
+def get_theme_css(theme="light"):
+    """Tema CSS'ini döndür"""
+    if theme == "dark":
+        return """
+        /* Karanlık tema */
+        .stApp {
+            background-color: #1a1a1a !important;
+            color: #ffffff !important;
+        }
+        
+        .main .block-container {
+            background-color: #1a1a1a !important;
+            color: #ffffff !important;
+        }
+        
+        .stMarkdown {
+            color: #ffffff !important;
+        }
+        
+        .stTextInput > div > div > input {
+            background-color: #2d2d2d !important;
+            color: #ffffff !important;
+            border-color: #444444 !important;
+        }
+        
+        .stSelectbox > div > div > div {
+            background-color: #2d2d2d !important;
+            color: #ffffff !important;
+        }
+        
+        .stSlider > div > div > div > div {
+            background-color: #2d2d2d !important;
+        }
+        
+        .stButton > button {
+            background: linear-gradient(90deg, #667eea 0%, #764ba2 100%) !important;
+            color: white !important;
+        }
+        
+        .chat-message {
+            background-color: #2d2d2d !important;
+            color: #ffffff !important;
+            border-color: #444444 !important;
+        }
+        
+        .user-message {
+            background-color: #1e3a5f !important;
+            border-left-color: #2196f3 !important;
+        }
+        
+        .bot-message {
+            background-color: #2d1b3d !important;
+            border-left-color: #9c27b0 !important;
+        }
+        
+        .sidebar .sidebar-content {
+            background-color: #1a1a1a !important;
+            color: #ffffff !important;
+        }
+        
+        .stTabs [data-baseweb="tab-list"] {
+            background-color: #2d2d2d !important;
+        }
+        
+        .stTabs [data-baseweb="tab"] {
+            color: #ffffff !important;
+        }
+        
+        .stTabs [aria-selected="true"] {
+            background-color: #667eea !important;
+            color: white !important;
+        }
+        
+        .auth-container {
+            background-color: #2d2d2d !important;
+            color: #ffffff !important;
+            border-color: #444444 !important;
+        }
+        
+        .auth-container h2 {
+            color: #ffffff !important;
+        }
+        
+        .user-info {
+            background-color: #2d2d2d !important;
+            color: #ffffff !important;
+            border-color: #444444 !important;
+        }
+        """
+    else:
+        return """
+        /* Aydınlık tema */
+        .stApp {
+            background-color: #ffffff !important;
+            color: #333333 !important;
+        }
+        
+        .main .block-container {
+            background-color: #ffffff !important;
+            color: #333333 !important;
+        }
+        
+        .stMarkdown {
+            color: #333333 !important;
+        }
+        
+        .stTextInput > div > div > input {
+            background-color: #ffffff !important;
+            color: #333333 !important;
+            border-color: #cccccc !important;
+        }
+        
+        .stSelectbox > div > div > div {
+            background-color: #ffffff !important;
+            color: #333333 !important;
+        }
+        
+        .stSlider > div > div > div > div {
+            background-color: #ffffff !important;
+        }
+        
+        .stButton > button {
+            background: linear-gradient(90deg, #667eea 0%, #764ba2 100%) !important;
+            color: white !important;
+        }
+        
+        .chat-message {
+            background-color: #ffffff !important;
+            color: #333333 !important;
+            border-color: #cccccc !important;
+        }
+        
+        .user-message {
+            background-color: #e3f2fd !important;
+            border-left-color: #2196f3 !important;
+        }
+        
+        .bot-message {
+            background-color: #f3e5f5 !important;
+            border-left-color: #9c27b0 !important;
+        }
+        
+        .sidebar .sidebar-content {
+            background-color: #f8f9fa !important;
+            color: #333333 !important;
+        }
+        
+        .stTabs [data-baseweb="tab-list"] {
+            background-color: #ffffff !important;
+        }
+        
+        .stTabs [data-baseweb="tab"] {
+            color: #333333 !important;
+        }
+        
+        .stTabs [aria-selected="true"] {
+            background-color: #667eea !important;
+            color: white !important;
+        }
+        
+        .auth-container {
+            background-color: #ffffff !important;
+            color: #333333 !important;
+            border-color: #cccccc !important;
+        }
+        
+        .auth-container h2 {
+            color: #333333 !important;
+        }
+        
+        .user-info {
+            background-color: #f8f9fa !important;
+            color: #333333 !important;
+            border-color: #cccccc !important;
+        }
+        """
+
 # Avatar fonksiyonları
 def get_user_avatar():
     """Kullanıcı avatarı döndür"""
@@ -32,9 +210,18 @@ def get_bot_avatar():
     ]
     return random.choice(bot_avatars)
 
-# CSS stilleri
-st.markdown("""
-<style>
+# CSS stilleri - Dinamik tema
+base_css = """
+    /* Sidebar genişliği - sadece açıkken geniş, kapanabilir */
+    section[data-testid="stSidebar"] {
+        width: 400px;
+    }
+    
+    /* Sidebar kapalıyken normal genişlik */
+    section[data-testid="stSidebar"][data-collapsed="true"] {
+        width: auto;
+    }
+    
     .main-header {
         background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
         padding: 1rem;
@@ -49,18 +236,6 @@ st.markdown("""
         border-radius: 10px;
         margin-bottom: 1rem;
         border-left: 4px solid;
-    }
-    
-    .user-message {
-        background-color: #e3f2fd;
-        border-left-color: #2196f3;
-        margin-left: 2rem;
-    }
-    
-    .bot-message {
-        background-color: #f3e5f5;
-        border-left-color: #9c27b0;
-        margin-right: 2rem;
     }
     
     .message-time {
@@ -117,10 +292,6 @@ st.markdown("""
         border: 2px solid #667eea !important;
     }
     
-    .sidebar .sidebar-content {
-        background: linear-gradient(180deg, #667eea 0%, #764ba2 100%);
-    }
-    
     .session-item {
         padding: 0.5rem;
         border-radius: 5px;
@@ -136,55 +307,6 @@ st.markdown("""
     .session-item.active {
         background-color: rgba(255, 255, 255, 0.2);
         border-left: 3px solid #fff;
-    }
-    
-    .auth-container {
-        background: white;
-        padding: 1rem;
-        border-radius: 10px;
-        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-        max-width: 300px;
-        margin: 0 auto;
-    }
-    
-    .auth-container h2 {
-        color: #333 !important;
-        font-weight: bold;
-        text-align: center;
-        margin-bottom: 1rem;
-    }
-    
-    .auth-container {
-        margin-bottom: 1rem;
-    }
-    
-    .user-info {
-        background: linear-gradient(90deg, #4CAF50 0%, #45a049 100%);
-        color: white;
-        padding: 0.5rem 1rem;
-        border-radius: 5px;
-        margin-bottom: 1rem;
-    }
-    
-    /* Form etiketleri için daha koyu renk */
-    .stForm label {
-        color: #333 !important;
-        font-weight: 600;
-    }
-    
-    /* Tab başlıkları için daha koyu renk */
-    .stTabs [data-baseweb="tab-list"] {
-        background-color: #f8f9fa;
-    }
-    
-    .stTabs [data-baseweb="tab"] {
-        color: #333 !important;
-        font-weight: 600;
-    }
-    
-    .stTabs [aria-selected="true"] {
-        color: #667eea !important;
-        font-weight: bold;
     }
     
     /* İndirme butonları için özel stiller */
@@ -272,8 +394,7 @@ st.markdown("""
         margin: 10px 0;
         overflow-x: auto;
     }
-</style>
-""", unsafe_allow_html=True)
+"""
 
 # Session state başlatma
 if "messages" not in st.session_state:
@@ -303,6 +424,20 @@ if "user_avatar" not in st.session_state:
 
 if "bot_avatar" not in st.session_state:
     st.session_state.bot_avatar = get_bot_avatar()
+
+# Tema ayarını session state'e ekle
+if "theme" not in st.session_state:
+    st.session_state.theme = "dark"  # "light" veya "dark" - varsayılan dark mode
+
+# CSS stillerini uygula (session state başlatıldıktan sonra)
+theme_css = get_theme_css(st.session_state.theme)
+full_css = base_css + theme_css
+
+st.markdown(f"""
+<style>
+{full_css}
+</style>
+""", unsafe_allow_html=True)
 
 # API fonksiyonları
 def check_auth_status():
@@ -810,6 +945,43 @@ else:
             st.session_state.messages.append(test_user_message)
             st.session_state.messages.append(test_bot_message)
             st.success("🧪 Test mesajları eklendi! Avatar'ları kontrol edin.")
+            st.rerun()
+        
+        st.markdown("---")
+        
+        # Tema Ayarları
+        st.markdown("## 🌙 Tema Ayarları")
+        
+        # Mevcut temayı göster
+        current_theme = st.session_state.theme
+        theme_icon = "🌙" if current_theme == "dark" else "☀️"
+        st.markdown(f"**{theme_icon} Mevcut Tema:** {current_theme.title()}")
+        
+        # Tema seçimi
+        col1, col2 = st.columns(2)
+        with col1:
+            if st.button("☀️ Aydınlık Tema", use_container_width=True):
+                st.session_state.theme = "light"
+                st.success("☀️ Aydınlık tema aktif!")
+                st.rerun()
+        
+        with col2:
+            if st.button("🌙 Karanlık Tema", use_container_width=True):
+                st.session_state.theme = "dark"
+                st.success("🌙 Karanlık tema aktif!")
+                st.rerun()
+        
+        # Otomatik tema (sistem ayarına göre)
+        if st.button("🔄 Sistem Teması", use_container_width=True):
+            # Basit sistem teması algılama (geliştirilebilir)
+            import datetime
+            current_hour = datetime.datetime.now().hour
+            if 6 <= current_hour <= 18:  # 06:00-18:00 arası aydınlık
+                st.session_state.theme = "light"
+                st.success("☀️ Sistem teması: Aydınlık")
+            else:
+                st.session_state.theme = "dark"
+                st.success("🌙 Sistem teması: Karanlık")
             st.rerun()
         
         st.markdown("---")
