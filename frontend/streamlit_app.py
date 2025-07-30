@@ -682,6 +682,10 @@ if "bot_avatar" not in st.session_state:
 if "theme" not in st.session_state:
     st.session_state.theme = "dark"  # "light" veya "dark" - varsayılan dark mode
 
+# Sistem mesajı ayarını session state'e ekle
+if "system_message" not in st.session_state:
+    st.session_state.system_message = ""
+
 # CSS stillerini uygula (session state başlatıldıktan sonra)
 theme_css = get_theme_css(st.session_state.theme)
 full_css = base_css + theme_css
@@ -1463,6 +1467,58 @@ else:
         
         st.markdown("---")
         
+        # Sistem Mesajı Ayarları
+        st.markdown("## 🎭 Bot Karakteri Ayarları")
+        
+        # Sistem mesajı açıklaması
+        st.info("💡 **Sistem mesajı**, bot'un karakterini ve davranışını belirler. Örneğin: 'Sen bir matematik öğretmenisin' veya 'Sen bir programcısın'")
+        
+        # Sistem mesajı girişi
+        system_message = st.text_area(
+            "🎭 Bot Karakteri:",
+            value=st.session_state.system_message,
+            placeholder="Örnek: Sen bir matematik öğretmenisin. Öğrencilere sabırla ve anlaşılır şekilde matematik konularını açıklarsın.",
+            height=100,
+            help="Bot'un karakterini ve davranışını tanımlayan mesaj"
+        )
+        
+        if system_message != st.session_state.system_message:
+            st.session_state.system_message = system_message
+            st.success("✅ Bot karakteri güncellendi!")
+        
+        # Hazır karakter şablonları
+        st.markdown("### 📋 Hazır Karakter Şablonları")
+        
+        character_templates = {
+            "Matematik Öğretmeni": "Sen bir matematik öğretmenisin. Öğrencilere sabırla ve anlaşılır şekilde matematik konularını açıklarsın. Karmaşık konuları basit adımlara bölersin.",
+            "Programcı": "Sen bir deneyimli programcısın. Kod yazma, hata ayıklama ve yazılım geliştirme konularında uzmanlaşmışsın. Pratik çözümler önerirsin.",
+            "Doktor": "Sen bir doktorsun. Sağlık konularında bilgilendirici ve güvenilir bilgiler verirsin. Ancak teşhis koymaz, sadece genel bilgi verirsin.",
+            "Tarihçi": "Sen bir tarihçisin. Geçmiş olayları, kişileri ve dönemleri detaylı ve ilgi çekici şekilde anlatırsın. Tarihi bağlamları açıklarsın.",
+            "Bilim İnsanı": "Sen bir bilim insanısın. Bilimsel konuları merak uyandırıcı şekilde açıklarsın. Deneyler ve araştırmalar hakkında bilgi verirsin.",
+            "Yazar": "Sen bir yaratıcı yazarsın. Hikayeler, şiirler ve yaratıcı metinler yazarsın. Kelimeleri güzel ve etkili şekilde kullanırsın.",
+            "Seyahat Rehberi": "Sen bir seyahat rehberisin. Ülkeler, şehirler ve turistik yerler hakkında bilgi verirsin. Seyahat önerileri sunarsın.",
+            "Spor Koçu": "Sen bir spor koçusun. Fitness, egzersiz ve sağlıklı yaşam konularında rehberlik edersin. Motivasyon verirsin.",
+            "Müzik Öğretmeni": "Sen bir müzik öğretmenisin. Müzik teorisi, enstrümanlar ve besteciler hakkında bilgi verirsin. Müzik zevki geliştirmeye yardım edersin.",
+            "Sanat Eleştirmeni": "Sen bir sanat eleştirmenisin. Resim, heykel, mimari ve diğer sanat türleri hakkında bilgi verirsin. Sanat eserlerini analiz edersin."
+        }
+        
+        # Karakter şablonları için butonlar
+        col1, col2 = st.columns(2)
+        for i, (name, template) in enumerate(character_templates.items()):
+            with col1 if i % 2 == 0 else col2:
+                if st.button(f"📝 {name}", key=f"template_{i}", use_container_width=True):
+                    st.session_state.system_message = template
+                    st.success(f"✅ {name} karakteri seçildi!")
+                    st.rerun()
+        
+        # Sistem mesajını temizle
+        if st.button("🗑️ Karakteri Temizle", use_container_width=True):
+            st.session_state.system_message = ""
+            st.success("✅ Bot karakteri temizlendi!")
+            st.rerun()
+        
+        st.markdown("---")
+        
         # Sohbet Oturumları
         st.markdown("## 💬 Sohbet Oturumları")
         
@@ -1619,7 +1675,8 @@ else:
                         "message": prompt,  # Sadece kullanıcının mesajını gönder
                         "model": model,
                         "temperature": temperature,
-                        "max_tokens": max_tokens
+                        "max_tokens": max_tokens,
+                        "system_message": st.session_state.system_message  # Sistem mesajını ekle
                     }
                     
                     # Eğer aktif oturum varsa session_id ekle

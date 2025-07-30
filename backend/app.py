@@ -245,6 +245,7 @@ def chat():
         model = data.get('model', 'llama3-8b-8192')
         temperature = data.get('temperature', 0.7)
         max_tokens = data.get('max_tokens', 1024)
+        system_message = data.get('system_message', '')  # Sistem mesajı
         
         # Sohbet geçmişini al (son 20 mesaj ile sınırla)
         conn = sqlite3.connect('chatbot.db')
@@ -257,6 +258,12 @@ def chat():
         
         # Groq API için mesaj formatını hazırla
         messages = []
+        
+        # Sistem mesajını ekle (eğer varsa)
+        if system_message:
+            messages.append({"role": "system", "content": system_message})
+        
+        # Chat geçmişini ekle
         for role, content in chat_history:
             messages.append({"role": role, "content": content})
         
