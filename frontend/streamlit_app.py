@@ -7,6 +7,8 @@ import base64
 import re
 import emoji
 import random
+import langdetect
+from langdetect import detect, DetectorFactory
 
 # Sayfa konfigürasyonu
 st.set_page_config(
@@ -210,6 +212,277 @@ def get_bot_avatar():
     ]
     return random.choice(bot_avatars)
 
+# Dil algılama ve çeviri fonksiyonları
+def detect_language(text):
+    """Metnin dilini algıla - Tüm diller"""
+    try:
+        # LangDetect kullanarak tüm dilleri algıla
+        from langdetect import detect, DetectorFactory
+        DetectorFactory.seed = 0
+        detected_lang = detect(text)
+        return detected_lang
+    except:
+        # Fallback: Basit kelime tabanlı algılama
+        text = text.lower().strip()
+        
+        # Türkçe karakterler ve kelimeler
+        turkish_chars = ['ç', 'ğ', 'ı', 'ö', 'ş', 'ü']
+        turkish_words = ['merhaba', 'selam', 'nasılsın', 'iyi', 'güzel', 'teşekkür', 'evet', 'hayır']
+        
+        # Almanca karakterler ve kelimeler
+        german_chars = ['ä', 'ö', 'ü', 'ß']
+        german_words = ['hallo', 'guten', 'tag', 'danke', 'bitte', 'ja', 'nein']
+        
+        # İngilizce kelimeler
+        english_words = ['hello', 'hi', 'how', 'are', 'you', 'good', 'bad', 'yes', 'no', 'thank', 'please']
+        
+        # Basit kelime sayımı
+        turkish_score = 0
+        german_score = 0
+        english_score = 0
+        
+        # Türkçe karakter kontrolü
+        for char in turkish_chars:
+            if char in text:
+                turkish_score += 2
+        
+        # Almanca karakter kontrolü
+        for char in german_chars:
+            if char in text:
+                german_score += 2
+        
+        # Kelime kontrolü
+        words = text.split()
+        for word in words:
+            if word in turkish_words:
+                turkish_score += 1
+            if word in german_words:
+                german_score += 1
+            if word in english_words:
+                english_score += 1
+        
+        # En yüksek skoru döndür
+        scores = {'tr': turkish_score, 'de': german_score, 'en': english_score}
+        best_lang = max(scores, key=scores.get)
+        
+        return best_lang
+
+def get_language_name(lang_code):
+    """Dil kodunu dil adına çevir"""
+    language_names = {
+        'tr': 'Türkçe', 'en': 'İngilizce', 'es': 'İspanyolca', 'fr': 'Fransızca', 'de': 'Almanca',
+        'it': 'İtalyanca', 'pt': 'Portekizce', 'ru': 'Rusça', 'ja': 'Japonca', 'ko': 'Korece',
+        'zh': 'Çince', 'ar': 'Arapça', 'hi': 'Hintçe', 'nl': 'Hollandaca', 'pl': 'Lehçe',
+        'sv': 'İsveççe', 'da': 'Danca', 'no': 'Norveççe', 'fi': 'Fince', 'hu': 'Macarca',
+        'cs': 'Çekçe', 'ro': 'Romence', 'bg': 'Bulgarca', 'hr': 'Hırvatça', 'sk': 'Slovakça',
+        'sl': 'Slovence', 'et': 'Estonca', 'lv': 'Letonca', 'lt': 'Litvanca', 'mt': 'Maltaca',
+        'ga': 'İrlandaca', 'cy': 'Galce', 'eu': 'Baskça', 'ca': 'Katalanca', 'gl': 'Galiçyaca',
+        'is': 'İzlandaca', 'mk': 'Makedonca', 'sq': 'Arnavutça', 'sr': 'Sırpça', 'bs': 'Boşnakça',
+        'me': 'Karadağca', 'uk': 'Ukraynaca', 'be': 'Belarusça', 'kk': 'Kazakça', 'ky': 'Kırgızca',
+        'uz': 'Özbekçe', 'tg': 'Tacikçe', 'mn': 'Moğolca', 'ka': 'Gürcüce', 'hy': 'Ermenice',
+        'az': 'Azerbaycanca', 'fa': 'Farsça', 'ur': 'Urduca', 'bn': 'Bengalce', 'ta': 'Tamilce',
+        'te': 'Telugu', 'kn': 'Kannada', 'ml': 'Malayalam', 'gu': 'Gujarati', 'pa': 'Pencapça',
+        'or': 'Odiya', 'as': 'Assamca', 'ne': 'Nepalce', 'si': 'Seylanca', 'my': 'Myanmar',
+        'km': 'Kamboçyaca', 'lo': 'Laoca', 'th': 'Tayca', 'vi': 'Vietnamca', 'id': 'Endonezce',
+        'ms': 'Malayca', 'tl': 'Tagalog', 'ceb': 'Cebuano', 'jv': 'Cavaca', 'su': 'Sundaca',
+        'sw': 'Svahili', 'am': 'Amharca', 'ha': 'Hausa', 'yo': 'Yoruba', 'ig': 'İgbo',
+        'zu': 'Zulu', 'xh': 'Xhosa', 'af': 'Afrikaanca', 'st': 'Sotho', 'tn': 'Tswana',
+        'ss': 'Swati', 've': 'Venda', 'ts': 'Tsonga', 'nd': 'Ndebele', 'sn': 'Shona',
+        'rw': 'Kinyarwanda', 'ak': 'Akan', 'tw': 'Twi', 'ee': 'Ewe', 'lg': 'Luganda',
+        'ny': 'Chichewa', 'mg': 'Malgaşça', 'so': 'Somalice', 'om': 'Oromoca', 'ti': 'Tigrinya',
+        'he': 'İbranice', 'yi': 'Yidiş', 'lb': 'Lüksemburgca', 'fo': 'Faroece', 'kl': 'Grönlandca',
+        'sm': 'Samoaca', 'to': 'Tongaca', 'fj': 'Fijice', 'haw': 'Hawaiice', 'mi': 'Maori',
+        'co': 'Korsikaca', 'oc': 'Oksitanca', 'sc': 'Sardunyaca', 'rm': 'Romanşça',
+        'fur': 'Friulanca', 'lld': 'Ladin', 'vec': 'Venedikçe', 'lmo': 'Lombardca',
+        'pms': 'Piyemontece', 'nap': 'Napolice', 'scn': 'Sicilyaca', 'lij': 'Liguryaca',
+        'pdc': 'Pennsylvania Almancası', 'bar': 'Bavyera Almancası', 'ksh': 'Kölnce',
+        'swg': 'Svabyaca', 'gsw': 'İsviçre Almancası', 'als': 'Alsasça', 'wae': 'Walser',
+        'sli': 'Silezyaca', 'hrx': 'Hunsrik', 'cim': 'Cimbri', 'mhn': 'Mocheno',
+        'yue': 'Kantonca', 'nan': 'Min Nan', 'hak': 'Hakka', 'gan': 'Gan', 'wuu': 'Wu',
+        'hsn': 'Xiang', 'cjy': 'Jin', 'cmn': 'Mandarin', 'dng': 'Dungan', 'ug': 'Uygurca',
+        'bo': 'Tibetçe', 'dz': 'Dzongkha'
+    }
+    
+    return language_names.get(lang_code, lang_code)
+
+def get_language_icon(lang_code):
+    """Dil kodu için ikon döndür"""
+    language_icons = {
+        'tr': '🇹🇷',
+        'en': '🇺🇸',
+        'es': '🇪🇸',
+        'fr': '🇫🇷',
+        'de': '🇩🇪',
+        'it': '🇮🇹',
+        'pt': '🇵🇹',
+        'ru': '🇷🇺',
+        'ja': '🇯🇵',
+        'ko': '🇰🇷',
+        'zh': '🇨🇳',
+        'ar': '🇸🇦',
+        'hi': '🇮🇳',
+        'nl': '🇳🇱',
+        'pl': '🇵🇱',
+        'sv': '🇸🇪',
+        'da': '🇩🇰',
+        'no': '🇳🇴',
+        'fi': '🇫🇮',
+        'hu': '🇭🇺',
+        'cs': '🇨🇿',
+        'ro': '🇷🇴',
+        'bg': '🇧🇬',
+        'hr': '🇭🇷',
+        'sk': '🇸🇰',
+        'sl': '🇸🇮',
+        'et': '🇪🇪',
+        'lv': '🇱🇻',
+        'lt': '🇱🇹',
+        'mt': '🇲🇹',
+        'ga': '🇮🇪',
+        'cy': '🇬🇧',
+        'eu': '🇪🇸',
+        'ca': '🇪🇸',
+        'gl': '🇪🇸',
+        'is': '🇮🇸',
+        'mk': '🇲🇰',
+        'sq': '🇦🇱',
+        'sr': '🇷🇸',
+        'bs': '🇧🇦',
+        'me': '🇲🇪',
+        'uk': '🇺🇦',
+        'be': '🇧🇾',
+        'kk': '🇰🇿',
+        'ky': '🇰🇬',
+        'uz': '🇺🇿',
+        'tg': '🇹🇯',
+        'mn': '🇲🇳',
+        'ka': '🇬🇪',
+        'hy': '🇦🇲',
+        'az': '🇦🇿',
+        'fa': '🇮🇷',
+        'ur': '🇵🇰',
+        'bn': '🇧🇩',
+        'ta': '🇮🇳',
+        'te': '🇮🇳',
+        'kn': '🇮🇳',
+        'ml': '🇮🇳',
+        'gu': '🇮🇳',
+        'pa': '🇮🇳',
+        'or': '🇮🇳',
+        'as': '🇮🇳',
+        'ne': '🇳🇵',
+        'si': '🇱🇰',
+        'my': '🇲🇲',
+        'km': '🇰🇭',
+        'lo': '🇱🇦',
+        'th': '🇹🇭',
+        'vi': '🇻🇳',
+        'id': '🇮🇩',
+        'ms': '🇲🇾',
+        'tl': '🇵🇭',
+        'ceb': '🇵🇭',
+        'jv': '🇮🇩',
+        'su': '🇮🇩',
+        'sw': '🇹🇿',
+        'am': '🇪🇹',
+        'ha': '🇳🇬',
+        'yo': '🇳🇬',
+        'ig': '🇳🇬',
+        'zu': '🇿🇦',
+        'xh': '🇿🇦',
+        'af': '🇿🇦',
+        'st': '🇿🇦',
+        'tn': '🇧🇼',
+        'ss': '🇸🇿',
+        've': '🇿🇦',
+        'ts': '🇿🇦',
+        'nd': '🇿🇼',
+        'sn': '🇿🇼',
+        'rw': '🇷🇼',
+        'ak': '🇬🇭',
+        'tw': '🇬🇭',
+        'ee': '🇬🇭',
+        'lg': '🇺🇬',
+        'ny': '🇲🇼',
+        'mg': '🇲🇬',
+        'so': '🇸🇴',
+        'om': '🇪🇹',
+        'ti': '🇪🇷',
+        'he': '🇮🇱',
+        'yi': '🇮🇱',
+        'lb': '🇱🇺',
+        'fo': '🇫🇴',
+        'kl': '🇬🇱',
+        'sm': '🇼🇸',
+        'to': '🇹🇴',
+        'fj': '🇫🇯',
+        'haw': '🇺🇸',
+        'mi': '🇳🇿',
+        'co': '🇫🇷',
+        'oc': '🇫🇷',
+        'sc': '🇮🇹',
+        'rm': '🇨🇭',
+        'fur': '🇮🇹',
+        'lld': '🇮🇹',
+        'vec': '🇮🇹',
+        'lmo': '🇮🇹',
+        'pms': '🇮🇹',
+        'nap': '🇮🇹',
+        'scn': '🇮🇹',
+        'lij': '🇮🇹',
+        'pdc': '🇺🇸',
+        'bar': '🇩🇪',
+        'ksh': '🇩🇪',
+        'swg': '🇩🇪',
+        'gsw': '🇨🇭',
+        'als': '🇫🇷',
+        'wae': '🇨🇭',
+        'sli': '🇵🇱',
+        'hrx': '🇧🇷',
+        'cim': '🇮🇹',
+        'mhn': '🇮🇹',
+        'yue': '🇭🇰',
+        'nan': '🇹🇼',
+        'hak': '🇹🇼',
+        'gan': '🇨🇳',
+        'wuu': '🇨🇳',
+        'hsn': '🇨🇳',
+        'cjy': '🇨🇳',
+        'cmn': '🇨🇳',
+        'dng': '🇰🇿',
+        'ug': '🇨🇳',
+        'bo': '🇨🇳',
+        'dz': '🇧🇹'
+    }
+    return language_icons.get(lang_code, '🌐')
+
+def create_language_prompt(user_message, detected_lang):
+    """Dil algılamasına göre prompt oluştur"""
+    if detected_lang == 'tr':
+        return f"""Sen Türkçe konuşan bir AI asistanısın. Kullanıcının mesajını Türkçe olarak yanıtla. 
+        Eğer kullanıcı başka bir dilde yazarsa, o dilde de yanıt verebilirsin.
+        
+        Kullanıcı mesajı: {user_message}
+        
+        Lütfen Türkçe olarak yanıtla:"""
+    
+    elif detected_lang == 'en':
+        return f"""You are an AI assistant who can speak English. Respond to the user's message in English.
+        If the user writes in another language, you can also respond in that language.
+        
+        User message: {user_message}
+        
+        Please respond in English:"""
+    
+    else:
+        lang_name = get_language_name(detected_lang)
+        return f"""You are a multilingual AI assistant. The user's message appears to be in {lang_name} ({detected_lang}).
+        Please respond in the same language as the user's message.
+        
+        User message: {user_message}
+        
+        Please respond in {lang_name}:"""
+
 # CSS stilleri - Dinamik tema
 base_css = """
     /* Sidebar genişliği - sadece açıkken geniş, kapanabilir */
@@ -381,7 +654,7 @@ if "messages" not in st.session_state:
     st.session_state.messages = []
 
 if "api_url" not in st.session_state:
-    st.session_state.api_url = "http://localhost:5050/api"
+            st.session_state.api_url = "http://localhost:4000/api"
 
 if "current_session_id" not in st.session_state:
     st.session_state.current_session_id = None
@@ -1021,6 +1294,175 @@ else:
         
         st.markdown("---")
         
+        # Dil Ayarları
+        st.markdown("## 🌍 Dil Ayarları")
+        
+        # Dil algılama ayarları
+        if 'auto_detect_language' not in st.session_state:
+            st.session_state.auto_detect_language = True
+        
+        if 'preferred_language' not in st.session_state:
+            st.session_state.preferred_language = 'tr'
+        
+        # Otomatik dil algılama
+        auto_detect = st.checkbox(
+            "🔍 Otomatik Dil Algılama",
+            value=st.session_state.auto_detect_language,
+            help="Kullanıcının mesajının dilini otomatik olarak algıla"
+        )
+        
+        if auto_detect != st.session_state.auto_detect_language:
+            st.session_state.auto_detect_language = auto_detect
+            st.success("✅ Dil algılama ayarı güncellendi!")
+        
+        # Tercih edilen dil seçimi
+        if not st.session_state.auto_detect_language:
+            # Tüm desteklenen diller
+            all_languages = [
+                "tr", "en", "es", "fr", "de", "it", "pt", "ru", "ja", "ko", "zh", "ar", "hi", "nl", "pl", "sv", 
+                "da", "no", "fi", "hu", "cs", "ro", "bg", "hr", "sk", "sl", "et", "lv", "lt", "mt", "ga", "cy", 
+                "eu", "ca", "gl", "is", "mk", "sq", "sr", "bs", "me", "uk", "be", "kk", "ky", "uz", "tg", "mn", 
+                "ka", "hy", "az", "fa", "ur", "bn", "ta", "te", "kn", "ml", "gu", "pa", "or", "as", "ne", "si", 
+                "my", "km", "lo", "th", "vi", "id", "ms", "tl", "ceb", "jv", "su", "sw", "am", "ha", "yo", "ig",
+                "zu", "xh", "af", "st", "tn", "ss", "ve", "ts", "nd", "sn", "rw", "ak", "tw", "ee", "lg", "ny", 
+                "mg", "so", "om", "ti", "he", "yi", "lb", "fo", "kl", "sm", "to", "fj", "haw", "mi", "co", "oc", 
+                "sc", "rm", "fur", "lld", "vec", "lmo", "pms", "nap", "scn", "lij", "pdc", "bar", "ksh", "swg", 
+                "gsw", "als", "wae", "sli", "hrx", "cim", "mhn", "yue", "nan", "hak", "gan", "wuu", "hsn", "cjy", 
+                "cmn", "dng", "ug", "bo", "dz"
+            ]
+            
+            preferred_lang = st.selectbox(
+                "🎯 Tercih Edilen Dil:",
+                all_languages,
+                format_func=lambda x: f"{get_language_icon(x)} {get_language_name(x)}",
+                index=all_languages.index(st.session_state.preferred_language) if st.session_state.preferred_language in all_languages else 0,
+                help="Bot'un yanıt vereceği tercih edilen dil"
+            )
+            
+            if preferred_lang != st.session_state.preferred_language:
+                st.session_state.preferred_language = preferred_lang
+                st.success(f"✅ Tercih edilen dil: {get_language_icon(preferred_lang)} {get_language_name(preferred_lang)}")
+        
+        # Dil test mesajı
+        if st.button("🧪 Dil Test Mesajı Gönder", use_container_width=True):
+            # Farklı dillerde test mesajları
+            test_messages = [
+                ("Merhaba! Nasılsın? Bugün hava çok güzel.", "Türkçe"),
+                ("Hello! How are you? The weather is beautiful today.", "İngilizce"),
+                ("Hola! ¿Cómo estás? El tiempo está muy hermoso hoy.", "İspanyolca"),
+                ("Bonjour! Comment allez-vous? Le temps est très beau aujourd'hui.", "Fransızca"),
+                ("Hallo! Wie geht es dir? Das Wetter ist heute sehr schön.", "Almanca"),
+                ("Ciao! Come stai? Il tempo è molto bello oggi.", "İtalyanca"),
+                ("Olá! Como você está? O tempo está muito bonito hoje.", "Portekizce"),
+                ("Привет! Как дела? Сегодня очень красивая погода.", "Rusça"),
+                ("こんにちは！お元気ですか？今日はとても美しい天気です。", "Japonca"),
+                ("안녕하세요! 어떻게 지내세요? 오늘 날씨가 정말 아름답습니다.", "Korece"),
+                ("你好！你好吗？今天天气很美丽。", "Çince"),
+                ("مرحبا! كيف حالك؟ الطقس جميل جدا اليوم.", "Arapça")
+            ]
+            
+            st.markdown("### 🧪 Dil Algılama Test Sonuçları:")
+            
+            for test_message, expected_lang in test_messages:
+                detected_lang = detect_language(test_message)
+                lang_name = get_language_name(detected_lang)
+                lang_icon = get_language_icon(detected_lang)
+                
+                # Doğru algılanan diller için ✅, yanlış için ❌
+                expected_codes = {
+                    "Türkçe": "tr", "İngilizce": "en", "İspanyolca": "es", "Fransızca": "fr",
+                    "Almanca": "de", "İtalyanca": "it", "Portekizce": "pt", "Rusça": "ru",
+                    "Japonca": "ja", "Korece": "ko", "Çince": "zh", "Arapça": "ar"
+                }
+                expected_code = expected_codes.get(expected_lang, "")
+                expected_icon = "✅" if detected_lang == expected_code else "❌"
+                
+                st.info(f"{expected_icon} **{expected_lang}:** {lang_icon} {lang_name} ({detected_lang})")
+                st.caption(f"📝 Test: {test_message}")
+                st.markdown("---")
+        
+        # Desteklenen diller
+        with st.expander("🌐 Desteklenen Diller (150+ Dil)"):
+            # Tüm dilleri kategorilere ayır
+            european_languages = [
+                ("tr", "Türkçe"), ("en", "İngilizce"), ("es", "İspanyolca"), ("fr", "Fransızca"),
+                ("de", "Almanca"), ("it", "İtalyanca"), ("pt", "Portekizce"), ("ru", "Rusça"),
+                ("nl", "Hollandaca"), ("pl", "Lehçe"), ("sv", "İsveççe"), ("da", "Danca"),
+                ("no", "Norveççe"), ("fi", "Fince"), ("hu", "Macarca"), ("cs", "Çekçe"),
+                ("ro", "Romence"), ("bg", "Bulgarca"), ("hr", "Hırvatça"), ("sk", "Slovakça"),
+                ("sl", "Slovence"), ("et", "Estonca"), ("lv", "Letonca"), ("lt", "Litvanca"),
+                ("mt", "Maltaca"), ("ga", "İrlandaca"), ("cy", "Galce"), ("eu", "Baskça"),
+                ("ca", "Katalanca"), ("gl", "Galiçyaca"), ("is", "İzlandaca"), ("mk", "Makedonca"),
+                ("sq", "Arnavutça"), ("sr", "Sırpça"), ("bs", "Boşnakça"), ("me", "Karadağca"),
+                ("uk", "Ukraynaca"), ("be", "Belarusça"), ("kk", "Kazakça"), ("ky", "Kırgızca"),
+                ("uz", "Özbekçe"), ("tg", "Tacikçe"), ("mn", "Moğolca"), ("ka", "Gürcüce"),
+                ("hy", "Ermenice"), ("az", "Azerbaycanca")
+            ]
+            
+            asian_languages = [
+                ("ja", "Japonca"), ("ko", "Korece"), ("zh", "Çince"), ("ar", "Arapça"),
+                ("hi", "Hintçe"), ("fa", "Farsça"), ("ur", "Urduca"), ("bn", "Bengalce"),
+                ("ta", "Tamilce"), ("te", "Telugu"), ("kn", "Kannada"), ("ml", "Malayalam"),
+                ("gu", "Gujarati"), ("pa", "Pencapça"), ("or", "Odiya"), ("as", "Assamca"),
+                ("ne", "Nepalce"), ("si", "Seylanca"), ("my", "Myanmar"), ("km", "Kamboçyaca"),
+                ("lo", "Laoca"), ("th", "Tayca"), ("vi", "Vietnamca"), ("id", "Endonezce"),
+                ("ms", "Malayca"), ("tl", "Tagalog"), ("ceb", "Cebuano"), ("jv", "Cavaca"),
+                ("su", "Sundaca"), ("yue", "Kantonca"), ("nan", "Min Nan"), ("hak", "Hakka"),
+                ("gan", "Gan"), ("wuu", "Wu"), ("hsn", "Xiang"), ("cjy", "Jin"), ("cmn", "Mandarin"),
+                ("dng", "Dungan"), ("ug", "Uygurca"), ("bo", "Tibetçe"), ("dz", "Dzongkha")
+            ]
+            
+            african_languages = [
+                ("sw", "Svahili"), ("am", "Amharca"), ("ha", "Hausa"), ("yo", "Yoruba"),
+                ("ig", "İgbo"), ("zu", "Zulu"), ("xh", "Xhosa"), ("af", "Afrikaanca"),
+                ("st", "Sotho"), ("tn", "Tswana"), ("ss", "Swati"), ("ve", "Venda"),
+                ("ts", "Tsonga"), ("nd", "Ndebele"), ("sn", "Shona"), ("rw", "Kinyarwanda"),
+                ("ak", "Akan"), ("tw", "Twi"), ("ee", "Ewe"), ("lg", "Luganda"),
+                ("ny", "Chichewa"), ("mg", "Malgaşça"), ("so", "Somalice"), ("om", "Oromoca"),
+                ("ti", "Tigrinya")
+            ]
+            
+            other_languages = [
+                ("he", "İbranice"), ("yi", "Yidiş"), ("lb", "Lüksemburgca"), ("fo", "Faroece"),
+                ("kl", "Grönlandca"), ("sm", "Samoaca"), ("to", "Tongaca"), ("fj", "Fijice"),
+                ("haw", "Hawaiice"), ("mi", "Maori"), ("co", "Korsikaca"), ("oc", "Oksitanca"),
+                ("sc", "Sardunyaca"), ("rm", "Romanşça"), ("fur", "Friulanca"), ("lld", "Ladin"),
+                ("vec", "Venedikçe"), ("lmo", "Lombardca"), ("pms", "Piyemontece"), ("nap", "Napolice"),
+                ("scn", "Sicilyaca"), ("lij", "Liguryaca"), ("pdc", "Pennsylvania Almancası"),
+                ("bar", "Bavyera Almancası"), ("ksh", "Kölnce"), ("swg", "Svabyaca"),
+                ("gsw", "İsviçre Almancası"), ("als", "Alsasça"), ("wae", "Walser"),
+                ("sli", "Silezyaca"), ("hrx", "Hunsrik"), ("cim", "Cimbri"), ("mhn", "Mocheno")
+            ]
+            
+            # Kategorileri göster
+            tab1, tab2, tab3, tab4 = st.tabs(["🇪🇺 Avrupa", "🌏 Asya", "🌍 Afrika", "🌎 Diğer"])
+            
+            with tab1:
+                cols = st.columns(4)
+                for i, (code, name) in enumerate(european_languages):
+                    with cols[i % 4]:
+                        st.markdown(f"{get_language_icon(code)} {name}")
+            
+            with tab2:
+                cols = st.columns(4)
+                for i, (code, name) in enumerate(asian_languages):
+                    with cols[i % 4]:
+                        st.markdown(f"{get_language_icon(code)} {name}")
+            
+            with tab3:
+                cols = st.columns(4)
+                for i, (code, name) in enumerate(african_languages):
+                    with cols[i % 4]:
+                        st.markdown(f"{get_language_icon(code)} {name}")
+            
+            with tab4:
+                cols = st.columns(4)
+                for i, (code, name) in enumerate(other_languages):
+                    with cols[i % 4]:
+                        st.markdown(f"{get_language_icon(code)} {name}")
+        
+        st.markdown("---")
+        
         # Sohbet Oturumları
         st.markdown("## 💬 Sohbet Oturumları")
         
@@ -1146,6 +1588,13 @@ else:
 
     # Kullanıcı girişi
     if prompt := st.chat_input("Mesajınızı yazın..."):
+        # Dil algılama (gizli)
+        detected_lang = None
+        if st.session_state.get('auto_detect_language', True):
+            detected_lang = detect_language(prompt)
+        else:
+            detected_lang = st.session_state.get('preferred_language', 'tr')
+        
         # Kullanıcı mesajını ekle
         user_message = {
             "role": "user",
@@ -1165,9 +1614,9 @@ else:
         with st.chat_message("assistant", avatar=st.session_state.bot_avatar):
             with st.spinner("🤔 Düşünüyor..."):
                 try:
-                    # API'ye istek gönder
+                    # API'ye istek gönder (sadece kullanıcı mesajını gönder, backend geçmişi alacak)
                     request_data = {
-                        "message": prompt,
+                        "message": prompt,  # Sadece kullanıcının mesajını gönder
                         "model": model,
                         "temperature": temperature,
                         "max_tokens": max_tokens

@@ -246,18 +246,11 @@ def chat():
         temperature = data.get('temperature', 0.7)
         max_tokens = data.get('max_tokens', 1024)
         
-        # Kullanıcı mesajını veritabanına kaydet
+        # Sohbet geçmişini al (son 20 mesaj ile sınırla)
         conn = sqlite3.connect('chatbot.db')
         cursor = conn.cursor()
         cursor.execute(
-            'INSERT INTO messages (session_id, role, content, model, temperature, max_tokens) VALUES (?, ?, ?, ?, ?, ?)',
-            (session_id, 'user', user_message, model, temperature, max_tokens)
-        )
-        conn.commit()
-        
-        # Sohbet geçmişini al
-        cursor.execute(
-            'SELECT role, content FROM messages WHERE session_id = ? ORDER BY timestamp ASC',
+            'SELECT role, content FROM messages WHERE session_id = ? ORDER BY timestamp ASC LIMIT 20',
             (session_id,)
         )
         chat_history = cursor.fetchall()
@@ -266,6 +259,370 @@ def chat():
         messages = []
         for role, content in chat_history:
             messages.append({"role": role, "content": content})
+        
+        # Kullanıcı mesajını veritabanına kaydet (önce kaydet, sonra geçmişe ekle)
+        cursor.execute(
+            'INSERT INTO messages (session_id, role, content, model, temperature, max_tokens) VALUES (?, ?, ?, ?, ?, ?)',
+            (session_id, 'user', user_message, model, temperature, max_tokens)
+        )
+        conn.commit()
+        
+        # Debug için mesaj sayısını logla
+        print(f"Session {session_id}: {len(messages)} messages in history")
+        for i, msg in enumerate(messages):
+            print(f"  {i+1}. {msg['role']}: {msg['content'][:50]}...")
+        
+        # Dil algılama sistemi (güvenilir)
+        def detect_language_advanced(text):
+            text = text.lower().strip()
+            
+            # Önce kesin eşleşmeleri kontrol et
+            exact_matches = {
+                'merhaba': 'tr', 'selam': 'tr', 'nasılsın': 'tr', 'iyi': 'tr', 'güzel': 'tr',
+                'hallo': 'de', 'guten': 'de', 'tag': 'de', 'danke': 'de', 'bitte': 'de',
+                'hola': 'es', 'buenos': 'es', 'días': 'es', 'gracias': 'es', 'por': 'es',
+                'hello': 'en', 'hi': 'en', 'how': 'en', 'are': 'en', 'you': 'en',
+                'bonjour': 'fr', 'salut': 'fr', 'comment': 'fr', 'ça': 'fr', 'va': 'fr',
+                'ciao': 'it', 'come': 'it', 'stai': 'it', 'bene': 'it', 'grazie': 'it',
+                'olá': 'pt', 'como': 'pt', 'está': 'pt', 'obrigado': 'pt', 'por': 'pt',
+                'привет': 'ru', 'как': 'ru', 'дела': 'ru', 'хорошо': 'ru', 'спасибо': 'ru',
+                'こんにちは': 'ja', 'おはよう': 'ja', 'ありがとう': 'ja', 'はい': 'ja', 'いいえ': 'ja',
+                '안녕하세요': 'ko', '안녕': 'ko', '감사합니다': 'ko', '네': 'ko', '아니요': 'ko',
+                '你好': 'zh', '谢谢': 'zh', '是的': 'zh', '不是': 'zh', '再见': 'zh',
+                'مرحبا': 'ar', 'شكرا': 'ar', 'نعم': 'ar', 'لا': 'ar', 'كيف': 'ar'
+            }
+            
+            # Kelime bazında kontrol
+            words = text.split()
+            for word in words:
+                if word in exact_matches:
+                    detected_lang = exact_matches[word]
+                    print(f"Exact match found: '{word}' -> {detected_lang}")
+                    return detected_lang
+            
+            # Karakter bazında kontrol
+            turkish_chars = ['ç', 'ğ', 'ı', 'ö', 'ş', 'ü']
+            german_chars = ['ä', 'ö', 'ü', 'ß']
+            
+            turkish_char_count = sum(1 for char in text if char in turkish_chars)
+            german_char_count = sum(1 for char in text if char in german_chars)
+            
+            if turkish_char_count > 0:
+                print(f"Turkish characters found: {turkish_char_count}")
+                return 'tr'
+            elif german_char_count > 0:
+                print(f"German characters found: {german_char_count}")
+                return 'de'
+            
+            # LangDetect'i son çare olarak kullan
+            try:
+                from langdetect import detect, DetectorFactory
+                DetectorFactory.seed = 0
+                detected_lang = detect(text)
+                print(f"LangDetect result: {detected_lang}")
+                return detected_lang
+            except Exception as e:
+                print(f"LangDetect error: {e}")
+                return 'en'  # Varsayılan İngilizce
+        
+        # Son kullanıcı mesajının dilini algıla
+        detected_lang = detect_language_advanced(user_message)
+        print(f"Detected language: {detected_lang} for message: {user_message[:50]}...")
+        
+        # Dil algılamasına göre kullanıcı mesajını güncelle
+        if detected_lang == 'tr':
+            enhanced_user_message = f"[Sen Türkçe konuşan bir AI asistanısın. Kullanıcının mesajını doğru Türkçe ile yanıtla. Türkçe dilbilgisi kurallarına uygun olarak yaz. Türkçe karakterleri (ç, ğ, ı, ö, ş, ü) doğru kullan.] {user_message}"
+        elif detected_lang == 'de':
+            enhanced_user_message = f"[Du bist ein KI-Assistent, der Deutsch spricht. Antworte auf die Nachricht des Benutzers auf Deutsch.] {user_message}"
+        elif detected_lang == 'es':
+            enhanced_user_message = f"[Eres un asistente de IA que habla español. Responde al mensaje del usuario en español.] {user_message}"
+        elif detected_lang == 'fr':
+            enhanced_user_message = f"[Tu es un assistant IA qui parle français. Réponds au message de l'utilisateur en français.] {user_message}"
+        elif detected_lang == 'it':
+            enhanced_user_message = f"[Sei un assistente IA che parla italiano. Rispondi al messaggio dell'utente in italiano.] {user_message}"
+        elif detected_lang == 'pt':
+            enhanced_user_message = f"[Você é um assistente de IA que fala português. Responda à mensagem do usuário em português.] {user_message}"
+        elif detected_lang == 'ru':
+            enhanced_user_message = f"[Вы - ИИ-ассистент, который говорит по-русски. Ответьте на сообщение пользователя на русском языке.] {user_message}"
+        elif detected_lang == 'ja':
+            enhanced_user_message = f"[あなたは日本語を話すAIアシスタントです。ユーザーのメッセージに日本語で答えてください。] {user_message}"
+        elif detected_lang == 'ko':
+            enhanced_user_message = f"[당신은 한국어를 구사하는 AI 어시스턴트입니다. 사용자의 메시지에 한국어로 답변하세요.] {user_message}"
+        elif detected_lang == 'zh':
+            enhanced_user_message = f"[你是一个会说中文的AI助手。请用中文回复用户的消息。] {user_message}"
+        elif detected_lang == 'ar':
+            enhanced_user_message = f"[أنت مساعد ذكاء اصطناعي يتحدث العربية. أجب على رسالة المستخدم باللغة العربية.] {user_message}"
+        elif detected_lang == 'hi':
+            enhanced_user_message = f"[आप एक AI सहायक हैं जो हिंदी बोलते हैं। उपयोगकर्ता के संदेश का जवाब हिंदी में दें।] {user_message}"
+        elif detected_lang == 'nl':
+            enhanced_user_message = f"[Je bent een AI-assistent die Nederlands spreekt. Antwoord op het bericht van de gebruiker in het Nederlands.] {user_message}"
+        elif detected_lang == 'pl':
+            enhanced_user_message = f"[Jesteś asystentem AI, który mówi po polsku. Odpowiedz na wiadomość użytkownika po polsku.] {user_message}"
+        elif detected_lang == 'sv':
+            enhanced_user_message = f"[Du är en AI-assistent som talar svenska. Svara på användarens meddelande på svenska.] {user_message}"
+        elif detected_lang == 'da':
+            enhanced_user_message = f"[Du er en AI-assistent, der taler dansk. Svar på brugerens besked på dansk.] {user_message}"
+        elif detected_lang == 'no':
+            enhanced_user_message = f"[Du er en AI-assistent som snakker norsk. Svar på brukerens melding på norsk.] {user_message}"
+        elif detected_lang == 'fi':
+            enhanced_user_message = f"[Olet AI-avustaja, joka puhuu suomea. Vastaa käyttäjän viestiin suomeksi.] {user_message}"
+        elif detected_lang == 'hu':
+            enhanced_user_message = f"[Te egy AI asszisztens vagy, aki magyarul beszél. Válaszolj a felhasználó üzenetére magyarul.] {user_message}"
+        elif detected_lang == 'cs':
+            enhanced_user_message = f"[Jste AI asistent, který mluví česky. Odpovězte na zprávu uživatele česky.] {user_message}"
+        elif detected_lang == 'ro':
+            enhanced_user_message = f"[Ești un asistent AI care vorbește română. Răspunde la mesajul utilizatorului în română.] {user_message}"
+        elif detected_lang == 'bg':
+            enhanced_user_message = f"[Вие сте AI асистент, който говори български. Отговорете на съобщението на потребителя на български.] {user_message}"
+        elif detected_lang == 'hr':
+            enhanced_user_message = f"[Vi ste AI asistent koji govori hrvatski. Odgovorite na korisnikovu poruku na hrvatskom.] {user_message}"
+        elif detected_lang == 'sk':
+            enhanced_user_message = f"[Ste AI asistent, ktorý hovorí slovensky. Odpovedzte na správu používateľa po slovensky.] {user_message}"
+        elif detected_lang == 'sl':
+            enhanced_user_message = f"[Vi ste AI asistent, ki govori slovensko. Odgovorite na sporočilo uporabnika v slovenščini.] {user_message}"
+        elif detected_lang == 'et':
+            enhanced_user_message = f"[Oled AI assistent, kes räägib eesti keelt. Vasta kasutaja sõnumile eesti keeles.] {user_message}"
+        elif detected_lang == 'lv':
+            enhanced_user_message = f"[Jūs esat AI asistents, kurš runā latviešu valodā. Atbildiet uz lietotāja ziņojumu latviešu valodā.] {user_message}"
+        elif detected_lang == 'lt':
+            enhanced_user_message = f"[Jūs esate AI asistentas, kuris kalba lietuvių kalba. Atsakykite į vartotojo žinutę lietuvių kalba.] {user_message}"
+        elif detected_lang == 'mt':
+            enhanced_user_message = f"[Inti assistent AI li jitkellem bil-Malti. Irrispondi lill-messaġġ tal-utent bil-Malti.] {user_message}"
+        elif detected_lang == 'ga':
+            enhanced_user_message = f"[Is cúntóir AI tú a labhraíonn Gaeilge. Freagair teachtaireacht an úsáideora as Gaeilge.] {user_message}"
+        elif detected_lang == 'cy':
+            enhanced_user_message = f"[Rydych chi'n cynorthwyydd AI sy'n siarad Cymraeg. Atebwch neges y defnyddiwr yn Gymraeg.] {user_message}"
+        elif detected_lang == 'eu':
+            enhanced_user_message = f"[Euskara hitz egiten duen AI laguntzailea zara. Erantzun erabiltzailearen mezua euskaraz.] {user_message}"
+        elif detected_lang == 'ca':
+            enhanced_user_message = f"[Ets un assistent d'IA que parla català. Respon al missatge de l'usuari en català.] {user_message}"
+        elif detected_lang == 'gl':
+            enhanced_user_message = f"[Es un asistente de IA que fala galego. Responde á mensaxe do usuario en galego.] {user_message}"
+        elif detected_lang == 'is':
+            enhanced_user_message = f"[Þú ert AI aðstoðarmaður sem talar íslensku. Svaraðu skilaboðum notandans á íslensku.] {user_message}"
+        elif detected_lang == 'mk':
+            enhanced_user_message = f"[Вие сте AI асистент кој зборува македонски. Одговорете на пораката на корисникот на македонски.] {user_message}"
+        elif detected_lang == 'sq':
+            enhanced_user_message = f"[Ju jeni një asistent AI që flet shqip. Përgjigjuni mesazhit të përdoruesit në shqip.] {user_message}"
+        elif detected_lang == 'sr':
+            enhanced_user_message = f"[Ви сте AI асистент који говори српски. Одговорите на поруку корисника на српском.] {user_message}"
+        elif detected_lang == 'bs':
+            enhanced_user_message = f"[Vi ste AI asistent koji govori bosanski. Odgovorite na poruku korisnika na bosanskom.] {user_message}"
+        elif detected_lang == 'me':
+            enhanced_user_message = f"[Vi ste AI asistent koji govori crnogorski. Odgovorite na poruku korisnika na crnogorskom.] {user_message}"
+        elif detected_lang == 'uk':
+            enhanced_user_message = f"[Ви - ІІ-асистент, який говорить українською. Відповідайте на повідомлення користувача українською мовою.] {user_message}"
+        elif detected_lang == 'be':
+            enhanced_user_message = f"[Вы - ІІ-асістэнт, які размаўляе па-беларуску. Адкажыце на паведамленне карыстальніка па-беларуску.] {user_message}"
+        elif detected_lang == 'kk':
+            enhanced_user_message = f"[Сіз қазақ тілінде сөйлейтін AI көмекшісісіз. Пайдаланушының хабарламасына қазақ тілінде жауап беріңіз.] {user_message}"
+        elif detected_lang == 'ky':
+            enhanced_user_message = f"[Сиз кыргыз тилинде сүйлөгөн AI жардамчысысыз. Колдонуучунун билдирүүсүнө кыргыз тилинде жооп бериңиз.] {user_message}"
+        elif detected_lang == 'uz':
+            enhanced_user_message = f"[Siz o'zbek tilida gapiruvchi AI yordamchisisiz. Foydalanuvchining xabariga o'zbek tilida javob bering.] {user_message}"
+        elif detected_lang == 'tg':
+            enhanced_user_message = f"[Шумо AI ёрдамчи ҳастед, ки тоҷикӣ гап мезанед. Ба пайғоми корбар ба тоҷикӣ ҷавоб диҳед.] {user_message}"
+        elif detected_lang == 'mn':
+            enhanced_user_message = f"[Та бол Монгол хэлээр ярьдагч AI туслах юм. Хэрэглэгчийн мессежид Монгол хэлээр хариулна уу.] {user_message}"
+        elif detected_lang == 'ka':
+            enhanced_user_message = f"[თქვენ ხართ AI ასისტენტი, რომელიც ქართულად საუბრობს. უპასუხეთ მომხმარებლის შეტყობინებას ქართულად.] {user_message}"
+        elif detected_lang == 'hy':
+            enhanced_user_message = f"[Դուք AI օգնական եք, ով խոսում է հայերեն: Պատասխանեք օգտագործողի հաղորդագրությանը հայերենով:] {user_message}"
+        elif detected_lang == 'az':
+            enhanced_user_message = f"[Siz Azərbaycan dilində danışan AI köməkçisisiniz. İstifadəçinin mesajına Azərbaycan dilində cavab verin.] {user_message}"
+        elif detected_lang == 'fa':
+            enhanced_user_message = f"[شما یک دستیار هوش مصنوعی هستید که فارسی صحبت می‌کند. به پیام کاربر به فارسی پاسخ دهید.] {user_message}"
+        elif detected_lang == 'ur':
+            enhanced_user_message = f"[آپ ایک AI اسسٹنٹ ہیں جو اردو بولتے ہیں۔ صارف کے پیغام کا جواب اردو میں دیں۔] {user_message}"
+        elif detected_lang == 'bn':
+            enhanced_user_message = f"[আপনি একজন AI সহকারী যিনি বাংলা বলেন। ব্যবহারকারীর বার্তার উত্তর বাংলায় দিন।] {user_message}"
+        elif detected_lang == 'ta':
+            enhanced_user_message = f"[நீங்கள் தமிழில் பேசும் AI உதவியாளர். பயனரின் செய்திக்கு தமிழில் பதிலளிக்கவும்.] {user_message}"
+        elif detected_lang == 'te':
+            enhanced_user_message = f"[మీరు తెలుగులో మాట్లాడే AI సహాయకుడు. వినియోగదారు సందేశానికి తెలుగులో సమాధానం ఇవ్వండి.] {user_message}"
+        elif detected_lang == 'kn':
+            enhanced_user_message = f"[ನೀವು ಕನ್ನಡದಲ್ಲಿ ಮಾತನಾಡುವ AI ಸಹಾಯಕ. ಬಳಕೆದಾರರ ಸಂದೇಶಕ್ಕೆ ಕನ್ನಡದಲ್ಲಿ ಉತ್ತರಿಸಿ.] {user_message}"
+        elif detected_lang == 'ml':
+            enhanced_user_message = f"[നിങ്ങൾ മലയാളത്തിൽ സംസാരിക്കുന്ന AI സഹായിയാണ്. ഉപയോക്താവിന്റെ സന്ദേശത്തിന് മലയാളത്തിൽ മറുപടി നൽകുക.] {user_message}"
+        elif detected_lang == 'gu':
+            enhanced_user_message = f"[તમે ગુજરાતીમાં બોલતા AI સહાયક છો. વપરાશકર્તાના સંદેશનો જવાબ ગુજરાતીમાં આપો.] {user_message}"
+        elif detected_lang == 'pa':
+            enhanced_user_message = f"[ਤੁਸੀਂ ਪੰਜਾਬੀ ਵਿੱਚ ਬੋਲਣ ਵਾਲੇ AI ਸਹਾਇਕ ਹੋ। ਉਪਭੋਗਤਾ ਦੇ ਸੁਨੇਹੇ ਦਾ ਜਵਾਬ ਪੰਜਾਬੀ ਵਿੱਚ ਦਿਓ।] {user_message}"
+        elif detected_lang == 'or':
+            enhanced_user_message = f"[ଆପଣ ଓଡ଼ିଆରେ କଥା ହେଉଥିବା AI ସହାୟକ। ବ୍ୟବହାରକାରୀର ବାର୍ତ୍ତାର ଉତ୍ତର ଓଡ଼ିଆରେ ଦିଅନ୍ତୁ।] {user_message}"
+        elif detected_lang == 'as':
+            enhanced_user_message = f"[আপুনি অসমীয়াত কথা কোৱা AI সহায়ক। ব্যৱহাৰকাৰীৰ বাৰ্তাৰ উত্তৰ অসমীয়াত দিয়ক।] {user_message}"
+        elif detected_lang == 'ne':
+            enhanced_user_message = f"[तपाईं नेपाली बोल्ने AI सहायक हुनुहुन्छ। प्रयोगकर्ताको सन्देशको जवाफ नेपालीमा दिनुहोस्।] {user_message}"
+        elif detected_lang == 'si':
+            enhanced_user_message = f"[ඔබ සිංහලෙන් කතා කරන AI සහායකයෙකි. පරිශීලකයාගේ පණිවිඩයට සිංහලෙන් පිළිතුරු දෙන්න.] {user_message}"
+        elif detected_lang == 'my':
+            enhanced_user_message = f"[သင်သည် မြန်မာဘာသာဖြင့် ပြောဆိုသော AI လက်ထောက်ဖြစ်သည်။ အသုံးပြုသူ၏ မက်ဆေ့ခ်ျကို မြန်မာဘာသာဖြင့် ဖြေကြားပါ။] {user_message}"
+        elif detected_lang == 'km':
+            enhanced_user_message = f"[អ្នកគឺជា AI ជំនួយការដែលនិយាយភាសាខ្មែរ។ ឆ្លើយតបទៅកាន់សាររបស់អ្នកប្រើប្រាស់ជាភាសាខ្មែរ។] {user_message}"
+        elif detected_lang == 'lo':
+            enhanced_user_message = f"[ທ່ານເປັນ AI ຜູ້ຊ່ວຍທີ່ເວົ້າພາສາລາວ. ຕອບກັບຂໍ້ຄວາມຂອງຜູ້ໃຊ້ເປັນພາສາລາວ.] {user_message}"
+        elif detected_lang == 'th':
+            enhanced_user_message = f"[คุณเป็น AI ผู้ช่วยที่พูดภาษาไทย ตอบข้อความของผู้ใช้เป็นภาษาไทย] {user_message}"
+        elif detected_lang == 'vi':
+            enhanced_user_message = f"[Bạn là trợ lý AI nói tiếng Việt. Trả lời tin nhắn của người dùng bằng tiếng Việt.] {user_message}"
+        elif detected_lang == 'id':
+            enhanced_user_message = f"[Anda adalah asisten AI yang berbicara bahasa Indonesia. Jawab pesan pengguna dalam bahasa Indonesia.] {user_message}"
+        elif detected_lang == 'ms':
+            enhanced_user_message = f"[Anda adalah pembantu AI yang bercakap bahasa Melayu. Jawab mesej pengguna dalam bahasa Melayu.] {user_message}"
+        elif detected_lang == 'tl':
+            enhanced_user_message = f"[Ikaw ay isang AI assistant na nagsasalita ng Tagalog. Sagutin ang mensahe ng user sa Tagalog.] {user_message}"
+        elif detected_lang == 'ceb':
+            enhanced_user_message = f"[Ikaw usa ka AI assistant nga nagsulti og Cebuano. Tubaga ang mensahe sa user sa Cebuano.] {user_message}"
+        elif detected_lang == 'jv':
+            enhanced_user_message = f"[Sampeyan kuwi asisten AI sing ngomong basa Jawa. Jawab pesen pangguna nganggo basa Jawa.] {user_message}"
+        elif detected_lang == 'su':
+            enhanced_user_message = f"[Anjeun mangrupikeun asisten AI anu nyarios basa Sunda. Waeh pesen pangguna dina basa Sunda.] {user_message}"
+        elif detected_lang == 'sw':
+            enhanced_user_message = f"[Wewe ni msaidizi wa AI anayezungumza Kiswahili. Jibu ujumbe wa mtumiaji kwa Kiswahili.] {user_message}"
+        elif detected_lang == 'am':
+            enhanced_user_message = f"[እርስዎ አማርኛ የሚናገር AI አገልግሎት ነዎት። የተጠቃሚውን መልእክት በአማርኛ ይመልሱ።] {user_message}"
+        elif detected_lang == 'ha':
+            enhanced_user_message = f"[Kai ne AI mataimaki wanda ke magana da Hausa. Amsa sakon mai amfani da Hausa.] {user_message}"
+        elif detected_lang == 'yo':
+            enhanced_user_message = f"[O jẹ́ olùrànlọ́wọ́ AI tí ó ń sọ èdè Yorùbá. Dáhùn ìfiranṣẹ́ olùlo èdè Yorùbá.] {user_message}"
+        elif detected_lang == 'ig':
+            enhanced_user_message = f"[Ị bụ onye enyemaka AI na-asụ Igbo. Zaa ozi onye ọrụ na Igbo.] {user_message}"
+        elif detected_lang == 'zu':
+            enhanced_user_message = f"[Ungumxhashe we-AI okhuluma isiZulu. Phendula umyalezo womsebenzisi ngesiZulu.] {user_message}"
+        elif detected_lang == 'xh':
+            enhanced_user_message = f"[Ungumxhasi we-AI okhuluma isiXhosa. Phendula umyalezo womsebenzisi ngesiXhosa.] {user_message}"
+        elif detected_lang == 'af':
+            enhanced_user_message = f"[Jy is 'n AI-assistent wat Afrikaans praat. Antwoord op die gebruiker se boodskap in Afrikaans.] {user_message}"
+        elif detected_lang == 'st':
+            enhanced_user_message = f"[U mokhanni wa AI ya buang le Sesotho. Araba molaetsa wa mosebedisi ka Sesotho.] {user_message}"
+        elif detected_lang == 'tn':
+            enhanced_user_message = f"[O le mothusi wa AI yo buang Setswana. Araba molaetsa wa mosebedisi ka Setswana.] {user_message}"
+        elif detected_lang == 'ss':
+            enhanced_user_message = f"[Ungumxhashe we-AI okhuluma siSwati. Phendula umyalezo womsebenzisi ngesiSwati.] {user_message}"
+        elif detected_lang == 've':
+            enhanced_user_message = f"[Ndi muthu u thusaho wa AI u amba Tshivenda. Fhindula ndaela ya muthu u shumisa nga Tshivenda.] {user_message}"
+        elif detected_lang == 'ts':
+            enhanced_user_message = f"[U muthu u thusaho wa AI u amba Xitsonga. Fhindula ndaela ya muthu u shumisa nga Xitsonga.] {user_message}"
+        elif detected_lang == 'nd':
+            enhanced_user_message = f"[Ungumxhashe we-AI okhuluma isiNdebele. Phendula umyalezo womsebenzisi ngesiNdebele.] {user_message}"
+        elif detected_lang == 'sn':
+            enhanced_user_message = f"[Uri mubatsiri weAI unotaura chiShona. Pindura meseji yemushandisi nechiShona.] {user_message}"
+        elif detected_lang == 'rw':
+            enhanced_user_message = f"[Uri umufasha wa AI uvuga Ikinyarwanda. Subiza ubutumwa bw'umukoresha mu Kinyarwanda.] {user_message}"
+        elif detected_lang == 'ak':
+            enhanced_user_message = f"[Wo yɛ AI boafo a ɔka Akan. Fa Akan hyɛ asɛm a ɔde ma no so.] {user_message}"
+        elif detected_lang == 'tw':
+            enhanced_user_message = f"[Wo yɛ AI boafo a ɔka Twi. Fa Twi hyɛ asɛm a ɔde ma no so.] {user_message}"
+        elif detected_lang == 'ee':
+            enhanced_user_message = f"[Wò nyɛ AI kpekpeɖeŋutsu si gblɔ Eʋegbe. Ɖe Eʋegbe ɖe gbeɖeɖe si wòɖe ɖe wò ŋutsu la ta.] {user_message}"
+        elif detected_lang == 'lg':
+            enhanced_user_message = f"[Oli mukozi wa AI eyogera Oluganda. Ddamu obubaka bw'omukozesa mu Luganda.] {user_message}"
+        elif detected_lang == 'ny':
+            enhanced_user_message = f"[Iwe ndi AI wothandizira amene amalankhula Chichewa. Yankhulani uthenga wa wogwiritsa ntchito mu Chichewa.] {user_message}"
+        elif detected_lang == 'mg':
+            enhanced_user_message = f"[Hianao no mpanampy AI miteny Malagasy. Valio ny hafatra an'ny mpampiasa amin'ny teny Malagasy.] {user_message}"
+        elif detected_lang == 'so':
+            enhanced_user_message = f"[Waxaad tahay caawiyaha AI ee ku hadla Soomaali. Ka jawaab fariinta isticmaalaha afka Soomaaliga.] {user_message}"
+        elif detected_lang == 'om':
+            enhanced_user_message = f"[Ati gargaara AI kan afaan Oromoo dubbatu. Deebii barruu fayyadamaa afaan Oromootiin kenni.] {user_message}"
+        elif detected_lang == 'ti':
+            enhanced_user_message = f"[ንስኻ ብትግርኛ ዘዛረብ AI ሓጋዚ ኢኻ። መልእክቲ ተጠቃሚ ብትግርኛ ምላሽ ሃብ።] {user_message}"
+        elif detected_lang == 'he':
+            enhanced_user_message = f"[אתה עוזר AI שמדבר עברית. ענה להודעת המשתמש בעברית.] {user_message}"
+        elif detected_lang == 'yi':
+            enhanced_user_message = f"[איר זענט אַן AI אַסיסטאַנט וואָס רעדט יידיש. ענטפערט צו דער באַניצער ס אָנזאָג אין יידיש.] {user_message}"
+        elif detected_lang == 'lb':
+            enhanced_user_message = f"[Dir sidd en AI Assistent deen Lëtzebuergesch schwätzt. Äntwert op d'Benotzer seng Noriicht op Lëtzebuergesch.] {user_message}"
+        elif detected_lang == 'fo':
+            enhanced_user_message = f"[Tú ert ein AI hjálpar, ið talar føroyskt. Svara brúkarans boðskapi á føroyskum.] {user_message}"
+        elif detected_lang == 'kl':
+            enhanced_user_message = f"[Illit AI-iliuinnarpoq kalaallisut oqaluttuarpoq. Aqaguutit atuakkia kalaallisut.] {user_message}"
+        elif detected_lang == 'sm':
+            enhanced_user_message = f"[O oe o se fesoasoani AI e tautala le gagana Samoa. Tali atu i le fe'au a le tagata fa'aoga i le gagana Samoa.] {user_message}"
+        elif detected_lang == 'to':
+            enhanced_user_message = f"[Ko koe ko e tokoni AI 'oku lea faka-Tonga. Tali ki he fe'au 'a e 'etita 'i he lea faka-Tonga.] {user_message}"
+        elif detected_lang == 'fj':
+            enhanced_user_message = f"[O iko e dau veivuke ni AI e vosa vakaviti. Vakasaurarataka na itukutuku ni dau vakayagataka ena vosa vakaviti.] {user_message}"
+        elif detected_lang == 'haw':
+            enhanced_user_message = f"[ʻO ʻoe he kōkua AI e ʻōlelo Hawaiʻi. E pane i ka leka uila a ka mea hoʻohana ma ka ʻōlelo Hawaiʻi.] {user_message}"
+        elif detected_lang == 'mi':
+            enhanced_user_message = f"[Ko koe he kaiāwhina AI e kōrero Māori. Whakahoki ki te karere a te kaiwhakamahi i te reo Māori.] {user_message}"
+        elif detected_lang == 'co':
+            enhanced_user_message = f"[Tù sì un assistente AI chì parla corsu. Rispondi à u messaghju di l'utilizatore in corsu.] {user_message}"
+        elif detected_lang == 'oc':
+            enhanced_user_message = f"[Sètz un assistent AI que parla occitan. Respondètz al messatge de l'utilizaire en occitan.] {user_message}"
+        elif detected_lang == 'sc':
+            enhanced_user_message = f"[Ses un assistente AI chi faeddat sardu. Responde a su messazu de s'utente in sardu.] {user_message}"
+        elif detected_lang == 'rm':
+            enhanced_user_message = f"[Ti es in assistent AI che discuorra rumantsch. Respunda al messadi da l'utilisader en rumantsch.] {user_message}"
+        elif detected_lang == 'fur':
+            enhanced_user_message = f"[Tu sês un assistent AI che fevele furlan. Respuint al messaç dal utent in furlan.] {user_message}"
+        elif detected_lang == 'lld':
+            enhanced_user_message = f"[Tu es un assistent AI che discuor ladin. Respunde al messaç de l'utent en ladin.] {user_message}"
+        elif detected_lang == 'vec':
+            enhanced_user_message = f"[Ti xe un assistente AI che parla vèneto. Rispondi al messajo de l'utente in vèneto.] {user_message}"
+        elif detected_lang == 'lmo':
+            enhanced_user_message = f"[Ti te see un assistent AI che parla lumbard. Respoond al messagg de l'utent in lumbard.] {user_message}"
+        elif detected_lang == 'pms':
+            enhanced_user_message = f"[Ti it ses n'assistent AI ch'a parla piemontèis. Arspond al mëssagi dl'utent an piemontèis.] {user_message}"
+        elif detected_lang == 'nap':
+            enhanced_user_message = f"[Tu si n'assistente AI ca parla napulitano. Responn' ô messaggio d' 'o utente 'n napulitano.] {user_message}"
+        elif detected_lang == 'scn':
+            enhanced_user_message = f"[Tu si n'assistenti AI ca parra sicilianu. Risponni ô missaggiu di l'utenti 'n sicilianu.] {user_message}"
+        elif detected_lang == 'lij':
+            enhanced_user_message = f"[Ti ti ê un assistente AI ch'o parla lìgure. Arspondi a-o messaggio de l'utente in lìgure.] {user_message}"
+        elif detected_lang == 'pdc':
+            enhanced_user_message = f"[Du bischt en AI Assistent wu Pennsilfaanisch Deitsch schwetzt. Antwatt uff die Benutzer sei Nochricht in Pennsilfaanisch Deitsch.] {user_message}"
+        elif detected_lang == 'bar':
+            enhanced_user_message = f"[Du bist a AI Assistent der Boarisch redt. Antwort auf de Benutza sei Nochricht in Boarisch.] {user_message}"
+        elif detected_lang == 'ksh':
+            enhanced_user_message = f"[Do bes en AI Assistent dä Kölsch kütt. Antwoot op de Benutzer sing Nohreesch en Kölsch.] {user_message}"
+        elif detected_lang == 'swg':
+            enhanced_user_message = f"[Du bisch a AI Assistent wo Schwäbisch redt. Antwort auf de Benutzer sei Nochricht in Schwäbisch.] {user_message}"
+        elif detected_lang == 'gsw':
+            enhanced_user_message = f"[Du bisch en AI Assistent wo Schwiizerdütsch redt. Antwort uf de Benutzer si Nochricht in Schwiizerdütsch.] {user_message}"
+        elif detected_lang == 'als':
+            enhanced_user_message = f"[Du bisch en AI Assistent wo Elsässisch redt. Antwort uf de Benutzer si Nochricht in Elsässisch.] {user_message}"
+        elif detected_lang == 'wae':
+            enhanced_user_message = f"[Du bisch en AI Assistent wo Walserdütsch redt. Antwort uf de Benutzer si Nochricht in Walserdütsch.] {user_message}"
+        elif detected_lang == 'sli':
+            enhanced_user_message = f"[Ty jes AI asystynt kery godo po ślůnsku. Uodpowjej na wiadůmość użytkowńika po ślůnsku.] {user_message}"
+        elif detected_lang == 'hrx':
+            enhanced_user_message = f"[Du bischt en AI Assistent wu Hunsrik redt. Antwatt uff die Benutzer sei Nochricht in Hunsrik.] {user_message}"
+        elif detected_lang == 'cim':
+            enhanced_user_message = f"[Tü pist en AI Assistent che parla zimbrisch. Antworte a la messazia de l'utent in zimbrisch.] {user_message}"
+        elif detected_lang == 'mhn':
+            enhanced_user_message = f"[Du pist en AI Assistent che parla mòchen. Antworte a la messazia de l'utent in mòchen.] {user_message}"
+        elif detected_lang == 'yue':
+            enhanced_user_message = f"[你係一個講廣東話嘅AI助手。請用廣東話回覆用戶嘅訊息。] {user_message}"
+        elif detected_lang == 'nan':
+            enhanced_user_message = f"[你是一个讲闽南语的AI助手。请用闽南语回复用户的消息。] {user_message}"
+        elif detected_lang == 'hak':
+            enhanced_user_message = f"[你係一個講客家話嘅AI助手。請用客家話回覆用戶嘅訊息。] {user_message}"
+        elif detected_lang == 'gan':
+            enhanced_user_message = f"[你是一个讲赣语的AI助手。请用赣语回复用户的消息。] {user_message}"
+        elif detected_lang == 'wuu':
+            enhanced_user_message = f"[你是一个讲吴语的AI助手。请用吴语回复用户的消息。] {user_message}"
+        elif detected_lang == 'hsn':
+            enhanced_user_message = f"[你是一个讲湘语的AI助手。请用湘语回复用户的消息。] {user_message}"
+        elif detected_lang == 'cjy':
+            enhanced_user_message = f"[你是一个讲晋语的AI助手。请用晋语回复用户的消息。] {user_message}"
+        elif detected_lang == 'cmn':
+            enhanced_user_message = f"[你是一个讲普通话的AI助手。请用普通话回复用户的消息。] {user_message}"
+        elif detected_lang == 'dng':
+            enhanced_user_message = f"[Син AI ярдәмчесе, Дунган телендә сөйләшә. Кулланучының хәбәрене Дунган телендә җаваплагыз.] {user_message}"
+        elif detected_lang == 'ug':
+            enhanced_user_message = f"[سىز ئۇيغۇر تىلىدا سۆزلىگۈچى AI ياردەمچىسىز. ئىشلەتكۈچىنىڭ ئۇچۇرىغا ئۇيغۇر تىلىدا جاۋاب بېرىڭ.] {user_message}"
+        elif detected_lang == 'bo':
+            enhanced_user_message = f"[ཁྱེད་རྣམ་པ་ནི་བོད་སྐད་ཤོད་མཁན་གྱི་AI རོགས་རམ་པ་ཞིག་ཡིན། སྤྱོད་མཁན་གྱི་སྐད་ཆ་ལ་བོད་སྐད་ནས་ལན་འདེབས་གནང་།] {user_message}"
+        elif detected_lang == 'dz':
+            enhanced_user_message = f"[ཁྱེད་རྣམ་པ་ནི་རྫོང་ཁ་ཤོད་མཁན་གྱི་AI རོགས་རམ་པ་ཞིག་ཡིན། སྤྱོད་མཁན་གྱི་སྐད་ཆ་ལ་རྫོང་ཁ་ནས་ལན་འདེབས་གནང་།] {user_message}"
+        else:
+            enhanced_user_message = f"[You are an AI assistant who can speak English. Respond to the user's message in English.] {user_message}"
+        
+        # Geliştirilmiş kullanıcı mesajını ekle
+        messages.append({"role": "user", "content": enhanced_user_message})
         
         # Groq API'ye istek gönder
         chat_completion = client.chat.completions.create(
@@ -625,4 +982,5 @@ def health_check():
     return jsonify({'status': 'healthy', 'message': 'Chatbot API is running'})
 
 if __name__ == '__main__':
-    app.run(debug=True, host='0.0.0.0', port=5050) 
+    port = int(os.environ.get('PORT', 5000))
+    app.run(debug=True, host='0.0.0.0', port=port) 
