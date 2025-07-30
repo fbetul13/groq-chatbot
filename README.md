@@ -31,7 +31,13 @@ git clone <repository-url>
 cd chatbot
 ```
 
-### 2. Python bağımlılıklarını yükleyin
+### 2. Cursor/VSCode ayarları (opsiyonel)
+Proje `.vscode/settings.json` dosyası ile panel boyutları otomatik ayarlanır:
+- Sağ panel geniş olarak açılır (800px)
+- Sidebar sol tarafta kalır (300px)
+- Panel maksimize edilmiş olarak başlar
+
+### 3. Python bağımlılıklarını yükleyin
 ```bash
 pip3 install -r requirements.txt
 ```

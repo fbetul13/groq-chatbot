@@ -32,11 +32,15 @@ env.bak/
 venv.bak/
 
 # IDE
-.vscode/
 .idea/
 *.swp
 *.swo
 *~
+
+# VSCode/Cursor settings (keep workspace settings)
+.vscode/*
+!.vscode/settings.json
+!.vscode/cursor-settings.json
 
 # OS
 .DS_Store
