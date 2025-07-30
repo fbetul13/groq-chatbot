@@ -4,6 +4,9 @@ import json
 from datetime import datetime
 import time
 import base64
+import re
+import emoji
+import random
 
 # Sayfa konfigürasyonu
 st.set_page_config(
@@ -12,6 +15,22 @@ st.set_page_config(
     layout="wide",
     initial_sidebar_state="collapsed"
 )
+
+# Avatar fonksiyonları
+def get_user_avatar():
+    """Kullanıcı avatarı döndür"""
+    user_avatars = [
+        "👤", "👨‍💼", "👩‍💼", "👨‍🎓", "👩‍🎓", "👨‍💻", "👩‍💻", 
+        "👨‍🔬", "👩‍🔬", "👨‍🎨", "👩‍🎨", "👨‍⚕️", "👩‍⚕️", "👨‍🏫", "👩‍🏫"
+    ]
+    return random.choice(user_avatars)
+
+def get_bot_avatar():
+    """Bot avatarı döndür"""
+    bot_avatars = [
+        "🤖", "🦾", "🧠", "💻", "🔮", "🎯", "⚡", "🚀", "🌟", "💎"
+    ]
+    return random.choice(bot_avatars)
 
 # CSS stilleri
 st.markdown("""
@@ -61,6 +80,41 @@ st.markdown("""
     
     .stButton > button:hover {
         background: linear-gradient(90deg, #5a6fd8 0%, #6a4190 100%);
+    }
+    
+    /* Avatar buton stilleri */
+    .avatar-button {
+        font-size: 1.5rem;
+        padding: 0.5rem;
+        border-radius: 50%;
+        border: 2px solid transparent;
+        background: transparent;
+        cursor: pointer;
+        transition: all 0.3s ease;
+    }
+    
+    .avatar-button:hover {
+        border-color: #667eea;
+        background: rgba(102, 126, 234, 0.1);
+        transform: scale(1.1);
+    }
+    
+    .avatar-button.active {
+        border-color: #667eea;
+        background: rgba(102, 126, 234, 0.2);
+    }
+    
+    /* Seçili avatar vurgulama */
+    .stButton > button[data-testid*="user_avatar"]:has-text("${st.session_state.user_avatar}") {
+        background-color: #667eea !important;
+        color: white !important;
+        border: 2px solid #667eea !important;
+    }
+    
+    .stButton > button[data-testid*="bot_avatar"]:has-text("${st.session_state.bot_avatar}") {
+        background-color: #667eea !important;
+        color: white !important;
+        border: 2px solid #667eea !important;
     }
     
     .sidebar .sidebar-content {
@@ -153,6 +207,71 @@ st.markdown("""
         font-size: 0.8rem;
         margin: 0.2rem;
     }
+    
+    /* Markdown stilleri */
+    .chat-message h1 {
+        font-size: 1.5rem;
+        font-weight: bold;
+        margin: 10px 0;
+        color: #333;
+    }
+    
+    .chat-message h2 {
+        font-size: 1.3rem;
+        font-weight: bold;
+        margin: 8px 0;
+        color: #333;
+    }
+    
+    .chat-message h3 {
+        font-size: 1.1rem;
+        font-weight: bold;
+        margin: 6px 0;
+        color: #333;
+    }
+    
+    .chat-message strong {
+        font-weight: bold;
+        color: #333;
+    }
+    
+    .chat-message em {
+        font-style: italic;
+        color: #666;
+    }
+    
+    .chat-message li {
+        margin: 2px 0;
+        padding-left: 10px;
+    }
+    
+    .chat-message a {
+        color: #007bff;
+        text-decoration: none;
+    }
+    
+    .chat-message a:hover {
+        text-decoration: underline;
+    }
+    
+    .chat-message code {
+        background-color: #f8f9fa;
+        padding: 2px 4px;
+        border-radius: 3px;
+        font-family: 'Courier New', monospace;
+        font-size: 0.9em;
+    }
+    
+    .chat-message pre {
+        background-color: #f8f9fa;
+        padding: 10px;
+        border-radius: 5px;
+        border-left: 4px solid #007bff;
+        font-family: 'Courier New', monospace;
+        white-space: pre-wrap;
+        margin: 10px 0;
+        overflow-x: auto;
+    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -177,6 +296,13 @@ if "username" not in st.session_state:
 
 if "auth_mode" not in st.session_state:
     st.session_state.auth_mode = "login"  # "login" veya "register"
+
+# Avatar'ları session state'e ekle
+if "user_avatar" not in st.session_state:
+    st.session_state.user_avatar = get_user_avatar()
+
+if "bot_avatar" not in st.session_state:
+    st.session_state.bot_avatar = get_bot_avatar()
 
 # API fonksiyonları
 def check_auth_status():
@@ -412,6 +538,76 @@ def clear_session_messages(session_id):
     except Exception as e:
         st.error(f"Temizleme hatası: {str(e)}")
 
+def process_markdown_and_emoji(text):
+    """Markdown ve emoji işleme"""
+    if not text:
+        return text
+    
+    # Emoji'leri işle
+    text = emoji.emojize(text, language='alias')
+    
+    # Markdown kod bloklarını koru
+    code_blocks = []
+    def save_code_block(match):
+        code_blocks.append(match.group(0))
+        return f"__CODE_BLOCK_{len(code_blocks)-1}__"
+    
+    # Kod bloklarını geçici olarak sakla
+    text = re.sub(r'```[\s\S]*?```', save_code_block, text)
+    
+    # Satır içi kod bloklarını da sakla
+    text = re.sub(r'`[^`]+`', save_code_block, text)
+    
+    # Markdown formatlaması
+    # Başlıklar
+    text = re.sub(r'^### (.*$)', r'<h3>\1</h3>', text, flags=re.MULTILINE)
+    text = re.sub(r'^## (.*$)', r'<h2>\1</h2>', text, flags=re.MULTILINE)
+    text = re.sub(r'^# (.*$)', r'<h1>\1</h1>', text, flags=re.MULTILINE)
+    
+    # Kalın ve italik
+    text = re.sub(r'\*\*(.*?)\*\*', r'<strong>\1</strong>', text)
+    text = re.sub(r'\*(.*?)\*', r'<em>\1</em>', text)
+    
+    # Liste
+    text = re.sub(r'^\* (.*$)', r'<li>\1</li>', text, flags=re.MULTILINE)
+    text = re.sub(r'^- (.*$)', r'<li>\1</li>', text, flags=re.MULTILINE)
+    
+    # Linkler
+    text = re.sub(r'\[([^\]]+)\]\(([^)]+)\)', r'<a href="\2" target="_blank">\1</a>', text)
+    
+    # Satır sonları
+    text = text.replace('\n', '<br>')
+    
+    # Kod bloklarını geri yükle
+    for i, code_block in enumerate(code_blocks):
+        text = text.replace(f"__CODE_BLOCK_{i}__", code_block)
+    
+    return text
+
+def render_message_content(content):
+    """Mesaj içeriğini render et"""
+    if not content:
+        return ""
+    
+    # Markdown ve emoji işle
+    processed_content = process_markdown_and_emoji(content)
+    
+    # Kod bloklarını özel olarak işle
+    def format_code_block(match):
+        code = match.group(1)
+        return f'<div style="background-color: #f8f9fa; padding: 10px; border-radius: 5px; border-left: 4px solid #007bff; font-family: monospace; white-space: pre-wrap; margin: 10px 0;">{code}</div>'
+    
+    # Satır içi kod bloklarını işle
+    def format_inline_code(match):
+        code = match.group(1)
+        return f'<code style="background-color: #f8f9fa; padding: 2px 4px; border-radius: 3px; font-family: monospace;">{code}</code>'
+    
+    # Kod bloklarını formatla
+    processed_content = re.sub(r'```(\w+)?\n([\s\S]*?)```', format_code_block, processed_content)
+    processed_content = re.sub(r'`([^`]+)`', format_inline_code, processed_content)
+    
+    return processed_content
+
 # Ana başlık
 st.markdown("""
 <div class="main-header">
@@ -545,6 +741,79 @@ else:
         
         st.markdown("---")
         
+        # Avatar Ayarları
+        st.markdown("## 🎭 Avatar Ayarları")
+        
+        # Mevcut avatar'ları göster
+        col1, col2 = st.columns(2)
+        with col1:
+            st.markdown(f"**👤 Kullanıcı Avatarı:** {st.session_state.user_avatar}")
+        with col2:
+            st.markdown(f"**🤖 Bot Avatarı:** {st.session_state.bot_avatar}")
+        
+        # Kullanıcı avatarı seçimi
+        user_avatars = ["👤", "👨‍💼", "👩‍💼", "👨‍🎓", "👩‍🎓", "👨‍💻", "👩‍💻", "👨‍🔬", "👩‍🔬", "👨‍🎨", "👩‍🎨", "👨‍⚕️", "👩‍⚕️", "👨‍🏫", "👩‍🏫"]
+        
+        st.markdown("**👤 Kullanıcı Avatarı Seçin:**")
+        user_avatar_cols = st.columns(5)
+        for i, avatar in enumerate(user_avatars):
+            with user_avatar_cols[i % 5]:
+                # Seçili avatar'ı vurgula
+                button_style = "background-color: #667eea; color: white;" if avatar == st.session_state.user_avatar else ""
+                if st.button(avatar, key=f"user_avatar_{i}", help=f"Kullanıcı avatarı: {avatar}"):
+                    st.session_state.user_avatar = avatar
+                    st.success(f"✅ Kullanıcı avatarı değiştirildi: {avatar}")
+                    st.rerun()
+        
+        # Bot avatarı seçimi
+        bot_avatars = ["🤖", "🦾", "🧠", "💻", "🔮", "🎯", "⚡", "🚀", "🌟", "💎"]
+        
+        st.markdown("**🤖 Bot Avatarı Seçin:**")
+        bot_avatar_cols = st.columns(5)
+        for i, avatar in enumerate(bot_avatars):
+            with bot_avatar_cols[i % 5]:
+                # Seçili avatar'ı vurgula
+                button_style = "background-color: #667eea; color: white;" if avatar == st.session_state.bot_avatar else ""
+                if st.button(avatar, key=f"bot_avatar_{i}", help=f"Bot avatarı: {avatar}"):
+                    st.session_state.bot_avatar = avatar
+                    st.success(f"✅ Bot avatarı değiştirildi: {avatar}")
+                    st.rerun()
+        
+        # Avatar sıfırlama
+        col1, col2 = st.columns(2)
+        with col1:
+            if st.button("🔄 Rastgele Avatar'lar", use_container_width=True):
+                st.session_state.user_avatar = get_user_avatar()
+                st.session_state.bot_avatar = get_bot_avatar()
+                st.success("🎲 Avatar'lar rastgele değiştirildi!")
+                st.rerun()
+        
+        with col2:
+            if st.button("🔄 Sohbeti Yenile", use_container_width=True):
+                st.success("🔄 Sohbet yenilendi! Yeni avatar'ları görebilirsiniz.")
+                st.rerun()
+        
+        # Avatar test mesajı
+        if st.button("🧪 Avatar Test Mesajı Gönder", use_container_width=True):
+            # Test mesajları ekle
+            test_user_message = {
+                "role": "user",
+                "content": "Bu bir test mesajıdır! Avatar'ımı görebiliyor musun? 👋",
+                "time": datetime.now().strftime("%H:%M")
+            }
+            test_bot_message = {
+                "role": "assistant", 
+                "content": "Evet! Senin avatar'ın: {st.session_state.user_avatar} ve benim avatar'ım: {st.session_state.bot_avatar} 🎭",
+                "time": datetime.now().strftime("%H:%M")
+            }
+            
+            st.session_state.messages.append(test_user_message)
+            st.session_state.messages.append(test_bot_message)
+            st.success("🧪 Test mesajları eklendi! Avatar'ları kontrol edin.")
+            st.rerun()
+        
+        st.markdown("---")
+        
         # Sohbet Oturumları
         st.markdown("## 💬 Sohbet Oturumları")
         
@@ -655,9 +924,17 @@ else:
 
     # Mesajları göster
     with chat_container:
-        for message in st.session_state.messages:
-            with st.chat_message(message["role"]):
-                st.markdown(message["content"])
+        for i, message in enumerate(st.session_state.messages):
+            # Avatar seç
+            if message["role"] == "user":
+                avatar = st.session_state.user_avatar
+            else:
+                avatar = st.session_state.bot_avatar
+            
+            with st.chat_message(message["role"], avatar=avatar):
+                # Markdown ve emoji desteği ile mesajı render et
+                rendered_content = render_message_content(message["content"])
+                st.markdown(rendered_content, unsafe_allow_html=True)
                 st.caption(message["time"])
 
     # Kullanıcı girişi
@@ -671,12 +948,14 @@ else:
         st.session_state.messages.append(user_message)
         
         # Kullanıcı mesajını göster
-        with st.chat_message("user"):
-            st.markdown(prompt)
+        with st.chat_message("user", avatar=st.session_state.user_avatar):
+            # Markdown ve emoji desteği ile kullanıcı mesajını render et
+            rendered_prompt = render_message_content(prompt)
+            st.markdown(rendered_prompt, unsafe_allow_html=True)
             st.caption(user_message["time"])
         
         # Bot yanıtını al
-        with st.chat_message("assistant"):
+        with st.chat_message("assistant", avatar=st.session_state.bot_avatar):
             with st.spinner("🤔 Düşünüyor..."):
                 try:
                     # API'ye istek gönder
@@ -715,8 +994,9 @@ else:
                         }
                         st.session_state.messages.append(bot_message)
                         
-                        # Bot yanıtını göster
-                        st.markdown(bot_response)
+                        # Bot yanıtını göster (avatar zaten chat_message'da ayarlandı)
+                        rendered_response = render_message_content(bot_response)
+                        st.markdown(rendered_response, unsafe_allow_html=True)
                         st.caption(bot_message["time"])
                         
                     else:
