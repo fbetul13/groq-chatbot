@@ -418,21 +418,11 @@ def chat():
         
         # Dil algılamasına göre kullanıcı mesajını güncelle
         if detected_lang == 'tr':
-            enhanced_user_message = f"""[Sen Türkçe konuşan bir AI asistanısın. Aşağıdaki kurallara kesinlikle uy:
-
-1. DOĞRU TÜRKÇE: Türkçe dilbilgisi kurallarına tam uyum sağla
-2. TÜRKÇE KARAKTERLER: ç, ğ, ı, ö, ş, ü karakterlerini doğru kullan
-3. ANLAMLI YANITLAR: Mantıklı, tutarlı ve anlaşılır yanıtlar ver
-4. DOĞAL DİL: Günlük Türkçe konuşma dilini kullan
-5. KONUYA ODAKLAN: SADECE sorulan konuya direkt ve net yanıt ver
-6. GEREKSİZ TEKRARLAR YAPMA: Aynı şeyi tekrar tekrar söyleme
-7. AKICI CÜMLELER: Uzun ve karmaşık cümleler yerine kısa ve net cümleler kur
-8. KONU TAKİBİ: Önceki konulardan bahsetme, sadece şu anki soruya odaklan
-9. HATALI KELİMELER: "vermemecessary" gibi anlamsız kelimeler kullanma
+            enhanced_user_message = f"""[Sen Türkçe konuşan bir AI asistanısın. Basit ve doğal Türkçe ile yanıt ver.
 
 Kullanıcının mesajı: {user_message}
 
-Yanıtını Türkçe olarak ver:]"""
+Türkçe olarak yanıtla:]"""
         elif detected_lang == 'de':
             enhanced_user_message = f"""[Du bist ein KI-Assistent, der Deutsch spricht. Befolge diese Regeln strikt:
 

@@ -584,6 +584,31 @@ base_css = """
         margin: 0.2rem;
     }
     
+    /* Mesaj butonları için özel stiller */
+    .message-btn {
+        background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border: none;
+        border-radius: 5px;
+        padding: 0.3rem 0.8rem;
+        font-size: 0.8rem;
+        margin: 0.2rem;
+        transition: all 0.3s ease;
+    }
+    
+    .message-btn:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+    }
+    
+    .resend-btn {
+        background: linear-gradient(90deg, #28a745 0%, #20c997 100%);
+    }
+    
+    .copy-btn {
+        background: linear-gradient(90deg, #17a2b8 0%, #6f42c1 100%);
+    }
+    
     /* Markdown stilleri */
     .chat-message h1 {
         font-size: 1.5rem;
@@ -2039,9 +2064,50 @@ else:
                 rendered_content = render_message_content(message["content"])
                 st.markdown(rendered_content, unsafe_allow_html=True)
                 st.caption(message["time"])
+        
+        # Bot mesajları için butonları sadece son bot mesajının altında göster
+        bot_messages = [i for i, msg in enumerate(st.session_state.messages) if msg["role"] == "assistant"]
+        if bot_messages:
+            last_bot_index = bot_messages[-1]
+            last_bot_message = st.session_state.messages[last_bot_index]
+            
+            # Sadece son bot mesajı için butonlar göster
+            with st.container():
+                col1, col2, col3 = st.columns([1, 1, 6])
+                
+                with col1:
+                    # Yeniden sor butonu (küçük)
+                    if st.button("🔄", key="resend_last", help="Bu soruyu tekrar sor", use_container_width=True):
+                        # Aynı mesajı tekrar gönder
+                        if last_bot_index > 0 and st.session_state.messages[last_bot_index-1]["role"] == "user":
+                            original_message = st.session_state.messages[last_bot_index-1]["content"]
+                            # Mesajı doğrudan gönder, rerun kullanma
+                            st.session_state.auto_send_message = original_message
+                
+                with col2:
+                    # Kopyala butonu (küçük)
+                    if st.button("📋", key="copy_last", help="Yanıtı panoya kopyala", use_container_width=True):
+                        # Mesajı panoya kopyala
+                        try:
+                            import pyperclip
+                            pyperclip.copy(last_bot_message["content"])
+                            st.success("✅")
+                        except ImportError:
+                            st.info("📋")
+                
+                with col3:
+                    # Boş alan
+                    st.markdown("")
 
     # Kullanıcı girişi
-    if prompt := st.chat_input("Mesajınızı yazın..."):
+    # Otomatik gönderilen mesaj varsa onu kullan
+    if hasattr(st.session_state, 'auto_send_message') and st.session_state.auto_send_message:
+        prompt = st.session_state.auto_send_message
+        del st.session_state.auto_send_message  # Mesajı temizle
+    else:
+        prompt = st.chat_input("Mesajınızı yazın...")
+    
+    if prompt:
         # Dil algılama (gizli)
         detected_lang = None
         if st.session_state.get('auto_detect_language', True):
