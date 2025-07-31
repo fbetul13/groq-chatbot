@@ -11,6 +11,7 @@ import hashlib
 import secrets
 import csv
 import io
+import tiktoken
 
 # .env dosyasını yükle
 load_dotenv()
@@ -79,6 +80,85 @@ init_db()
 # Şifre hash fonksiyonu
 def hash_password(password):
     return hashlib.sha256(password.encode()).hexdigest()
+
+# Token sayımı fonksiyonları
+def get_token_count(text, model="llama3-8b-8192"):
+    """Metindeki token sayısını hesapla"""
+    try:
+        # Model için uygun encoding'i seç
+        if "llama" in model.lower():
+            encoding = tiktoken.get_encoding("cl100k_base")  # GPT-4 encoding (Llama için de kullanılır)
+        elif "gpt" in model.lower():
+            encoding = tiktoken.get_encoding("cl100k_base")
+        else:
+            encoding = tiktoken.get_encoding("cl100k_base")  # Varsayılan
+        
+        return len(encoding.encode(text))
+    except Exception as e:
+        print(f"Token sayımı hatası: {e}")
+        # Hata durumunda yaklaşık hesaplama (1 token ≈ 4 karakter)
+        return len(text) // 4
+
+def check_token_limit(messages, max_tokens, model="llama3-8b-8192"):
+    """Token limitini kontrol et ve uyarı ver"""
+    try:
+        # Tüm mesajları birleştir
+        full_text = ""
+        for msg in messages:
+            full_text += msg.get('content', '') + "\n"
+        
+        # Mevcut token sayısını hesapla
+        current_tokens = get_token_count(full_text, model)
+        
+        # Model limitlerini tanımla (yaklaşık değerler)
+        model_limits = {
+            "llama3-8b-8192": 8192,
+            "llama3.1-8b-instant": 8192,
+            "llama3.1-70b-8192": 8192,
+            "llama3.1-405b-8192": 8192,
+            "mixtral-8x7b-32768": 32768,
+            "gemma-7b-it": 8192
+        }
+        
+        # Model limitini al (varsayılan: 8192)
+        model_limit = model_limits.get(model, 8192)
+        
+        # Kullanılabilir token sayısı
+        available_tokens = model_limit - current_tokens
+        
+        # Uyarı seviyeleri
+        warning_level = "safe"
+        warning_message = ""
+        
+        if available_tokens < max_tokens:
+            warning_level = "critical"
+            warning_message = f"⚠️ Token limiti aşıldı! Mevcut: {current_tokens}, Limit: {model_limit}, İstenen: {max_tokens}"
+        elif available_tokens < max_tokens * 1.5:
+            warning_level = "warning"
+            warning_message = f"⚠️ Token limiti yaklaşıyor! Kalan: {available_tokens}, İstenen: {max_tokens}"
+        elif available_tokens < max_tokens * 2:
+            warning_level = "info"
+            warning_message = f"ℹ️ Token durumu: {available_tokens} kullanılabilir"
+        
+        return {
+            "current_tokens": current_tokens,
+            "model_limit": model_limit,
+            "available_tokens": available_tokens,
+            "warning_level": warning_level,
+            "warning_message": warning_message,
+            "can_proceed": available_tokens >= max_tokens
+        }
+        
+    except Exception as e:
+        print(f"Token limit kontrolü hatası: {e}")
+        return {
+            "current_tokens": 0,
+            "model_limit": 8192,
+            "available_tokens": 8192,
+            "warning_level": "error",
+            "warning_message": f"Token hesaplama hatası: {str(e)}",
+            "can_proceed": True  # Hata durumunda devam et
+        }
 
 # Kullanıcı kimlik doğrulama decorator'ı
 def require_auth(f):
@@ -267,13 +347,6 @@ def chat():
         for role, content in chat_history:
             messages.append({"role": role, "content": content})
         
-        # Kullanıcı mesajını veritabanına kaydet (önce kaydet, sonra geçmişe ekle)
-        cursor.execute(
-            'INSERT INTO messages (session_id, role, content, model, temperature, max_tokens) VALUES (?, ?, ?, ?, ?, ?)',
-            (session_id, 'user', user_message, model, temperature, max_tokens)
-        )
-        conn.commit()
-        
         # Debug için mesaj sayısını logla
         print(f"Session {session_id}: {len(messages)} messages in history")
         for i, msg in enumerate(messages):
@@ -286,7 +359,7 @@ def chat():
             # Önce kesin eşleşmeleri kontrol et
             exact_matches = {
                 'merhaba': 'tr', 'selam': 'tr', 'nasılsın': 'tr', 'iyi': 'tr', 'güzel': 'tr',
-                'hallo': 'de', 'guten': 'de', 'tag': 'de', 'danke': 'de', 'bitte': 'de',
+                'hallo': 'de', 'guten': 'de', 'tag': 'de', 'danke': 'de', 'bitte': 'de', 'kannst': 'de', 'du': 'de', 'mir': 'de', 'die': 'de', 'aber': 'de', 'original': 'de',
                 'hola': 'es', 'buenos': 'es', 'días': 'es', 'gracias': 'es', 'por': 'es',
                 'hello': 'en', 'hi': 'en', 'how': 'en', 'are': 'en', 'you': 'en',
                 'bonjour': 'fr', 'salut': 'fr', 'comment': 'fr', 'ça': 'fr', 'va': 'fr',
@@ -336,29 +409,172 @@ def chat():
         detected_lang = detect_language_advanced(user_message)
         print(f"Detected language: {detected_lang} for message: {user_message[:50]}...")
         
+        # Kullanıcı mesajını veritabanına kaydet
+        cursor.execute(
+            'INSERT INTO messages (session_id, role, content, model, temperature, max_tokens) VALUES (?, ?, ?, ?, ?, ?)',
+            (session_id, 'user', user_message, model, temperature, max_tokens)
+        )
+        conn.commit()
+        
         # Dil algılamasına göre kullanıcı mesajını güncelle
         if detected_lang == 'tr':
-            enhanced_user_message = f"[Sen Türkçe konuşan bir AI asistanısın. Kullanıcının mesajını doğru Türkçe ile yanıtla. Türkçe dilbilgisi kurallarına uygun olarak yaz. Türkçe karakterleri (ç, ğ, ı, ö, ş, ü) doğru kullan.] {user_message}"
+            enhanced_user_message = f"""[Sen Türkçe konuşan bir AI asistanısın. Aşağıdaki kurallara kesinlikle uy:
+
+1. DOĞRU TÜRKÇE: Türkçe dilbilgisi kurallarına tam uyum sağla
+2. TÜRKÇE KARAKTERLER: ç, ğ, ı, ö, ş, ü karakterlerini doğru kullan
+3. ANLAMLI YANITLAR: Mantıklı, tutarlı ve anlaşılır yanıtlar ver
+4. DOĞAL DİL: Günlük Türkçe konuşma dilini kullan
+5. KONUYA ODAKLAN: SADECE sorulan konuya direkt ve net yanıt ver
+6. GEREKSİZ TEKRARLAR YAPMA: Aynı şeyi tekrar tekrar söyleme
+7. AKICI CÜMLELER: Uzun ve karmaşık cümleler yerine kısa ve net cümleler kur
+8. KONU TAKİBİ: Önceki konulardan bahsetme, sadece şu anki soruya odaklan
+9. HATALI KELİMELER: "vermemecessary" gibi anlamsız kelimeler kullanma
+
+Kullanıcının mesajı: {user_message}
+
+Yanıtını Türkçe olarak ver:]"""
         elif detected_lang == 'de':
-            enhanced_user_message = f"[Du bist ein KI-Assistent, der Deutsch spricht. Antworte auf die Nachricht des Benutzers auf Deutsch.] {user_message}"
+            enhanced_user_message = f"""[Du bist ein KI-Assistent, der Deutsch spricht. Befolge diese Regeln strikt:
+
+1. KORREKTES DEUTSCH: Verwende korrekte deutsche Grammatik und Rechtschreibung
+2. DEUTSCHE ZEICHEN: Verwende ä, ö, ü, ß korrekt
+3. SINNVOLLE ANTWORTEN: Gib logische, konsistente und verständliche Antworten
+4. NATÜRLICHE SPRACHE: Verwende natürliches, alltägliches Deutsch
+5. FOKUSSIERT: Antworte NUR auf die gestellte Frage, nicht auf frühere Themen
+6. KEINE WIEDERHOLUNGEN: Wiederhole nicht unnötig dieselben Dinge
+7. FLÜSSIGE SÄTZE: Verwende kurze, klare Sätze statt zu langer, komplexer Sätze
+8. THEMA FOKUS: Sprich nur über das aktuelle Thema, nicht über vorherige Gespräche
+9. KEINE FEHLERHAFTEN WÖRTER: Verwende keine sinnlosen oder falschen Wörter
+
+Benutzer-Nachricht: {user_message}
+
+Antworte auf Deutsch:]"""
         elif detected_lang == 'es':
-            enhanced_user_message = f"[Eres un asistente de IA que habla español. Responde al mensaje del usuario en español.] {user_message}"
+            enhanced_user_message = f"""[Eres un asistente de IA que habla español. Sigue estas reglas estrictamente:
+
+1. ESPAÑOL CORRECTO: Usa gramática y ortografía española correcta
+2. CARACTERES ESPAÑOLES: Usa ñ, á, é, í, ó, ú, ü correctamente
+3. RESPUESTAS SIGNIFICATIVAS: Da respuestas lógicas, consistentes y comprensibles
+4. LENGUAJE NATURAL: Usa español natural y cotidiano
+5. ENFOQUE: Responde directamente y con precisión a la pregunta
+6. SIN REPETICIONES: No repitas innecesariamente las mismas cosas
+7. ORACIONES FLUIDAS: Usa oraciones cortas y claras en lugar de oraciones largas y complejas
+
+Mensaje del usuario: {user_message}
+
+Responde en español:]"""
         elif detected_lang == 'fr':
-            enhanced_user_message = f"[Tu es un assistant IA qui parle français. Réponds au message de l'utilisateur en français.] {user_message}"
+            enhanced_user_message = f"""[Tu es un assistant IA qui parle français. Suis ces règles strictement:
+
+1. FRANÇAIS CORRECT: Utilise une grammaire et une orthographe françaises correctes
+2. CARACTÈRES FRANÇAIS: Utilise é, è, ê, ë, à, â, ï, î, ô, û, ù, ü, ç correctement
+3. RÉPONSES SIGNIFICATIVES: Donne des réponses logiques, cohérentes et compréhensibles
+4. LANGAGE NATUREL: Utilise un français naturel et quotidien
+5. FOCUS: Réponds directement et précisément à la question
+6. SANS RÉPÉTITIONS: Ne répète pas inutilement les mêmes choses
+7. PHRASES FLUIDES: Utilise des phrases courtes et claires au lieu de phrases longues et complexes
+
+Message de l'utilisateur: {user_message}
+
+Réponds en français:]"""
         elif detected_lang == 'it':
-            enhanced_user_message = f"[Sei un assistente IA che parla italiano. Rispondi al messaggio dell'utente in italiano.] {user_message}"
+            enhanced_user_message = f"""[Sei un assistente IA che parla italiano. Segui queste regole rigorosamente:
+
+1. ITALIANO CORRETTO: Usa grammatica e ortografia italiana corretta
+2. CARATTERI ITALIANI: Usa à, è, é, ì, ò, ù correttamente
+3. RISPOSTE SIGNIFICATIVE: Dai risposte logiche, coerenti e comprensibili
+4. LINGUAGGIO NATURALE: Usa italiano naturale e quotidiano
+5. FOCUS: Rispondi direttamente e precisamente alla domanda
+6. SENZA RIPETIZIONI: Non ripetere inutilmente le stesse cose
+7. FRASI FLUIDE: Usa frasi brevi e chiare invece di frasi lunghe e complesse
+
+Messaggio dell'utente: {user_message}
+
+Rispondi in italiano:]"""
         elif detected_lang == 'pt':
-            enhanced_user_message = f"[Você é um assistente de IA que fala português. Responda à mensagem do usuário em português.] {user_message}"
+            enhanced_user_message = f"""[Você é um assistente de IA que fala português. Siga estas regras estritamente:
+
+1. PORTUGUÊS CORRETO: Use gramática e ortografia portuguesa correta
+2. CARACTERES PORTUGUESES: Use ã, õ, ç, á, é, í, ó, ú corretamente
+3. RESPOSTAS SIGNIFICATIVAS: Dê respostas lógicas, consistentes e compreensíveis
+4. LINGUAGEM NATURAL: Use português natural e cotidiano
+5. FOCO: Responda diretamente e precisamente à pergunta
+6. SEM REPETIÇÕES: Não repita desnecessariamente as mesmas coisas
+7. FRASES FLUIDAS: Use frases curtas e claras em vez de frases longas e complexas
+
+Mensagem do usuário: {user_message}
+
+Responda em português:]"""
         elif detected_lang == 'ru':
-            enhanced_user_message = f"[Вы - ИИ-ассистент, который говорит по-русски. Ответьте на сообщение пользователя на русском языке.] {user_message}"
+            enhanced_user_message = f"""[Вы - ИИ-ассистент, который говорит по-русски. Следуйте этим правилам строго:
+
+1. ПРАВИЛЬНЫЙ РУССКИЙ: Используйте правильную русскую грамматику и орфографию
+2. РУССКИЕ БУКВЫ: Используйте ё, й, ъ, ь, э, ю, я правильно
+3. ОСМЫСЛЕННЫЕ ОТВЕТЫ: Давайте логичные, последовательные и понятные ответы
+4. ЕСТЕСТВЕННЫЙ ЯЗЫК: Используйте естественный, повседневный русский
+5. ФОКУС: Отвечайте прямо и точно на вопрос
+6. БЕЗ ПОВТОРЕНИЙ: Не повторяйте ненужно одни и те же вещи
+7. ПЛАВНЫЕ ПРЕДЛОЖЕНИЯ: Используйте короткие, ясные предложения вместо длинных и сложных
+
+Сообщение пользователя: {user_message}
+
+Отвечайте на русском языке:]"""
         elif detected_lang == 'ja':
-            enhanced_user_message = f"[あなたは日本語を話すAIアシスタントです。ユーザーのメッセージに日本語で答えてください。] {user_message}"
+            enhanced_user_message = f"""[あなたは日本語を話すAIアシスタントです。以下のルールを厳守してください：
+
+1. 正しい日本語: 正しい日本語の文法と表記を使用する
+2. 日本語文字: ひらがな、カタカナ、漢字を適切に使用する
+3. 意味のある回答: 論理的で一貫性があり理解しやすい回答を提供する
+4. 自然な言語: 自然で日常的な日本語を使用する
+5. 焦点: 質問に直接的に正確に答える
+6. 繰り返しなし: 同じことを不必要に繰り返さない
+7. 流暢な文章: 長く複雑な文章ではなく、短く明確な文章を使用する
+
+ユーザーのメッセージ: {user_message}
+
+日本語で答えてください:]"""
         elif detected_lang == 'ko':
-            enhanced_user_message = f"[당신은 한국어를 구사하는 AI 어시스턴트입니다. 사용자의 메시지에 한국어로 답변하세요.] {user_message}"
+            enhanced_user_message = f"""[당신은 한국어를 구사하는 AI 어시스턴트입니다. 다음 규칙을 엄격히 따르세요:
+
+1. 올바른 한국어: 올바른 한국어 문법과 맞춤법을 사용하세요
+2. 한국어 문자: 한글, 한자를 적절히 사용하세요
+3. 의미 있는 답변: 논리적이고 일관성 있으며 이해하기 쉬운 답변을 제공하세요
+4. 자연스러운 언어: 자연스럽고 일상적인 한국어를 사용하세요
+5. 집중: 질문에 직접적이고 정확하게 답변하세요
+6. 반복 없음: 같은 것을 불필요하게 반복하지 마세요
+7. 유창한 문장: 길고 복잡한 문장보다는 짧고 명확한 문장을 사용하세요
+
+사용자 메시지: {user_message}
+
+한국어로 답변하세요:]"""
         elif detected_lang == 'zh':
-            enhanced_user_message = f"[你是一个会说中文的AI助手。请用中文回复用户的消息。] {user_message}"
+            enhanced_user_message = f"""[你是一个会说中文的AI助手。请严格遵守以下规则：
+
+1. 正确的中文：使用正确的中文语法和书写
+2. 中文字符：正确使用简体字或繁体字
+3. 有意义的回答：提供逻辑性、一致性和易懂的回答
+4. 自然语言：使用自然、日常的中文
+5. 重点：直接准确地回答问题
+6. 无重复：不要不必要地重复相同的内容
+7. 流畅句子：使用简短清晰的句子而不是长而复杂的句子
+
+用户消息：{user_message}
+
+请用中文回答:]"""
         elif detected_lang == 'ar':
-            enhanced_user_message = f"[أنت مساعد ذكاء اصطناعي يتحدث العربية. أجب على رسالة المستخدم باللغة العربية.] {user_message}"
+            enhanced_user_message = f"""[أنت مساعد ذكاء اصطناعي يتحدث العربية. اتبع هذه القواعد بدقة:
+
+1. العربية الصحيحة: استخدم قواعد النحو والإملاء العربية الصحيحة
+2. الحروف العربية: استخدم الحروف العربية بشكل صحيح
+3. إجابات ذات معنى: قدم إجابات منطقية ومتسقة ومفهومة
+4. لغة طبيعية: استخدم العربية الطبيعية واليومية
+5. التركيز: أجب مباشرة وبشكل دقيق على السؤال
+6. بدون تكرار: لا تكرر نفس الأشياء بشكل غير ضروري
+7. جمل سلسة: استخدم جمل قصيرة وواضحة بدلاً من جمل طويلة ومعقدة
+
+رسالة المستخدم: {user_message}
+
+أجب باللغة العربية:]"""
         elif detected_lang == 'hi':
             enhanced_user_message = f"[आप एक AI सहायक हैं जो हिंदी बोलते हैं। उपयोगकर्ता के संदेश का जवाब हिंदी में दें।] {user_message}"
         elif detected_lang == 'nl':
@@ -631,10 +847,18 @@ def chat():
         # Geliştirilmiş kullanıcı mesajını ekle
         messages.append({"role": "user", "content": enhanced_user_message})
         
+        # Token limitini kontrol et
+        token_check = check_token_limit(messages, max_tokens, model)
+        print(f"Token kontrolü: {token_check}")
+        
+        # Eğer kritik seviyede ise uyarı ver ama devam et
+        if token_check["warning_level"] == "critical":
+            print(f"⚠️ KRİTİK: {token_check['warning_message']}")
+        
         # Groq API'ye istek gönder
         chat_completion = client.chat.completions.create(
-            messages=messages,
             model=model,
+            messages=messages,
             temperature=temperature,
             max_tokens=max_tokens,
         )
@@ -662,7 +886,8 @@ def chat():
             'session_id': session_id,
             'model': model,
             'temperature': temperature,
-            'max_tokens': max_tokens
+            'max_tokens': max_tokens,
+            'token_info': token_check
         })
         
     except Exception as e:
@@ -989,5 +1214,5 @@ def health_check():
     return jsonify({'status': 'healthy', 'message': 'Chatbot API is running'})
 
 if __name__ == '__main__':
-    port = int(os.environ.get('PORT', 5000))
+    port = int(os.environ.get('PORT', 5002))
     app.run(debug=True, host='0.0.0.0', port=port) 

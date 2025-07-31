@@ -57,7 +57,7 @@ logs/
 
 # Database
 *.db
-*.sqlite3
+*.sqlite3 
 
 # Cookies and temporary files
 cookies.txt

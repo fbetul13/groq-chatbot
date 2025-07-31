@@ -7,7 +7,6 @@
     "workbench.editor.tabSizing": "shrink",
     "workbench.editor.wrapTabs": false,
     "editor.minimap.enabled": false,
-    "workbench.activityBar.visible": true,
     "workbench.statusBar.visible": true,
     "workbench.tree.indent": 20,
     "workbench.tree.renderIndentGuides": "always"

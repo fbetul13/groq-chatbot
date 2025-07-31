@@ -8,6 +8,7 @@ import re
 import emoji
 import random
 import langdetect
+import pandas as pd
 from langdetect import detect, DetectorFactory
 
 # Sayfa konfigürasyonu
@@ -654,7 +655,7 @@ if "messages" not in st.session_state:
     st.session_state.messages = []
 
 if "api_url" not in st.session_state:
-            st.session_state.api_url = "http://localhost:4000/api"
+            st.session_state.api_url = "http://localhost:5002/api"
 
 if "current_session_id" not in st.session_state:
     st.session_state.current_session_id = None
@@ -999,6 +1000,359 @@ def render_message_content(content):
     processed_content = re.sub(r'`([^`]+)`', format_inline_code, processed_content)
     
     return processed_content
+
+def display_token_warning(token_info):
+    """Token uyarısını göster"""
+    if not token_info:
+        return
+    
+    warning_level = token_info.get('warning_level', 'safe')
+    warning_message = token_info.get('warning_message', '')
+    
+    if warning_level == 'critical':
+        st.error(f"🚨 {warning_message}")
+    elif warning_level == 'warning':
+        st.warning(f"⚠️ {warning_message}")
+    elif warning_level == 'info':
+        st.info(f"ℹ️ {warning_message}")
+    elif warning_level == 'safe':
+        st.success(f"✅ Token durumu güvenli")
+    
+    # Token detaylarını göster
+    with st.expander("🔢 Token Detayları"):
+        col1, col2, col3 = st.columns(3)
+        with col1:
+            st.metric("Mevcut Token", token_info.get('current_tokens', 0))
+        with col2:
+            st.metric("Model Limiti", token_info.get('model_limit', 8192))
+        with col3:
+            st.metric("Kullanılabilir", token_info.get('available_tokens', 0))
+
+def display_token_status_sidebar(token_info):
+    """Sidebar'da token durumunu göster"""
+    if not token_info:
+        return
+    
+    warning_level = token_info.get('warning_level', 'safe')
+    current_tokens = token_info.get('current_tokens', 0)
+    model_limit = token_info.get('model_limit', 8192)
+    available_tokens = token_info.get('available_tokens', 0)
+    
+    # Token kullanım yüzdesi
+    usage_percentage = (current_tokens / model_limit) * 100
+    
+    # Renk seçimi
+    if warning_level == 'critical':
+        color = "🔴"
+        progress_color = "red"
+    elif warning_level == 'warning':
+        color = "🟡"
+        progress_color = "orange"
+    elif warning_level == 'info':
+        color = "🔵"
+        progress_color = "blue"
+    else:
+        color = "🟢"
+        progress_color = "green"
+    
+    # Sidebar'da göster
+    st.sidebar.markdown("---")
+    st.sidebar.markdown("## 🔢 Token Durumu")
+    
+    # Progress bar
+    st.sidebar.progress(usage_percentage / 100, text=f"{color} {usage_percentage:.1f}%")
+    
+    # Kısa bilgi
+    st.sidebar.markdown(f"**Kullanılan:** {current_tokens:,}")
+    st.sidebar.markdown(f"**Limit:** {model_limit:,}")
+    st.sidebar.markdown(f"**Kalan:** {available_tokens:,}")
+    
+    # Uyarı mesajı (sadece kritik durumlarda)
+    if warning_level in ['critical', 'warning']:
+        st.sidebar.warning(f"⚠️ {warning_message}")
+    
+    # Detay butonu
+    if st.sidebar.button("📊 Detaylı Görünüm", key="token_details"):
+        st.session_state.show_token_details = not st.session_state.get('show_token_details', False)
+    
+    # Detaylı görünüm (eğer açıksa)
+    if st.session_state.get('show_token_details', False):
+        with st.sidebar.expander("📈 Token Analizi", expanded=True):
+            col1, col2 = st.sidebar.columns(2)
+            with col1:
+                st.metric("Kullanılan", f"{current_tokens:,}")
+            with col2:
+                st.metric("Kalan", f"{available_tokens:,}")
+            
+            st.sidebar.markdown(f"**Model:** {token_info.get('model', 'N/A')}")
+            st.sidebar.markdown(f"**Durum:** {warning_level.upper()}")
+
+def check_language_quality(text, language):
+    """Dil yanıt kalitesini kontrol et"""
+    if not text:
+        return {"quality": "unknown", "issues": [], "score": 0}
+    
+    issues = []
+    score = 100
+    
+    # Dil özel karakter kontrolü
+    language_chars = {
+        'tr': ['ç', 'ğ', 'ı', 'ö', 'ş', 'ü'],
+        'de': ['ä', 'ö', 'ü', 'ß'],
+        'es': ['ñ', 'á', 'é', 'í', 'ó', 'ú', 'ü'],
+        'fr': ['é', 'è', 'ê', 'ë', 'à', 'â', 'ï', 'î', 'ô', 'û', 'ù', 'ü', 'ç'],
+        'it': ['à', 'è', 'é', 'ì', 'ò', 'ù'],
+        'pt': ['ã', 'õ', 'ç', 'á', 'é', 'í', 'ó', 'ú'],
+        'ru': ['ё', 'й', 'ъ', 'ь', 'э', 'ю', 'я'],
+        'ja': ['あ', 'い', 'う', 'え', 'お', 'か', 'き', 'く', 'け', 'こ'],  # Hiragana örnekleri
+        'ko': ['가', '나', '다', '라', '마', '바', '사', '아', '자', '차'],  # Hangul örnekleri
+        'zh': ['你', '我', '他', '她', '它', '们', '的', '是', '在', '有'],  # Çince örnekleri
+        'ar': ['ا', 'ب', 'ت', 'ث', 'ج', 'ح', 'خ', 'د', 'ذ', 'ر']  # Arapça örnekleri
+    }
+    
+    if language in language_chars:
+        chars = language_chars[language]
+        missing_chars = []
+        for char in chars:
+            if char in text.lower() and char not in text:
+                missing_chars.append(char)
+        
+        if missing_chars:
+            issues.append(f"{language.upper()} karakterler eksik: {', '.join(missing_chars)}")
+            score -= 10
+    
+    # Tekrar kontrolü
+    words = text.lower().split()
+    word_count = {}
+    for word in words:
+        if len(word) > 3:  # Sadece uzun kelimeleri kontrol et
+            word_count[word] = word_count.get(word, 0) + 1
+            if word_count[word] > 3:  # 3'ten fazla tekrar
+                issues.append(f"Tekrar eden kelime: '{word}'")
+                score -= 5
+    
+    # Cümle uzunluğu kontrolü
+    sentences = text.split('.')
+    long_sentences = [s for s in sentences if len(s.split()) > 20]
+    if long_sentences:
+        issues.append(f"{len(long_sentences)} çok uzun cümle var")
+        score -= 10
+    
+    # Dil özel anlamsız kelime kontrolü
+    meaningless_words = {
+        'tr': ['şey', 'falan', 'filan', 'böyle', 'şöyle', 'vermemecessary'],
+        'en': ['thing', 'stuff', 'like', 'you know', 'basically'],
+        'de': ['Ding', 'Sache', 'so', 'halt', 'eigentlich'],
+        'es': ['cosa', 'así', 'pues', 'bueno', 'vamos'],
+        'fr': ['chose', 'truc', 'comme', 'enfin', 'voilà'],
+        'it': ['cosa', 'così', 'dunque', 'beh', 'ecco'],
+        'pt': ['coisa', 'assim', 'então', 'bem', 'pronto'],
+        'ru': ['вещь', 'так', 'ну', 'вот', 'знаешь'],
+        'ja': ['もの', 'こと', 'そう', 'まあ', 'えっと'],
+        'ko': ['것', '그래', '음', '저기', '그니까'],
+        'zh': ['东西', '这样', '那个', '就是', '然后'],
+        'ar': ['شيء', 'هكذا', 'حسناً', 'أي', 'يعني']
+    }
+    
+    if language in meaningless_words:
+        words_to_check = meaningless_words[language]
+        meaningless_count = sum(1 for word in words if word in words_to_check)
+        if meaningless_count > 2:
+            issues.append("Çok fazla anlamsız kelime kullanılmış")
+            score -= 15
+    
+    # Konu tutarlılığı kontrolü (basit)
+    topic_keywords = {
+        'japan': ['japan', 'japanese', 'tokyo', 'osaka', 'kyoto'],
+        'shopping': ['shopping', 'buy', 'store', 'market', 'shop'],
+        'math': ['laplace', 'equation', 'differential', 'mathematics', 'math']
+    }
+    
+    # Eğer önceki konu ile şu anki konu çok farklıysa uyarı ver
+    text_lower = text.lower()
+    current_topics = []
+    for topic, keywords in topic_keywords.items():
+        if any(keyword in text_lower for keyword in keywords):
+            current_topics.append(topic)
+    
+    if len(current_topics) > 2:  # Çok fazla farklı konu varsa
+        issues.append("Çok fazla farklı konu karışmış")
+        score -= 10
+    
+    # Kalite seviyesi
+    if score >= 90:
+        quality = "excellent"
+    elif score >= 75:
+        quality = "good"
+    elif score >= 60:
+        quality = "fair"
+    else:
+        quality = "poor"
+    
+    return {
+        "quality": quality,
+        "issues": issues,
+        "score": max(0, score)
+    }
+
+def check_turkish_quality(text):
+    """Türkçe yanıt kalitesini kontrol et (geriye uyumluluk için)"""
+    return check_language_quality(text, 'tr')
+
+def display_api_status_sidebar():
+    """Sidebar'da API durumunu göster"""
+    st.sidebar.markdown("---")
+    st.sidebar.markdown("## 📡 API Durumu")
+    
+    try:
+        start_time = time.time()
+        response = requests.get(f"{st.session_state.api_url}/health", timeout=3)
+        response_time = (time.time() - start_time) * 1000  # milisaniye
+        
+        if response.status_code == 200:
+            # Hızlı yanıt (< 100ms)
+            if response_time < 100:
+                status_icon = "🟢"
+                status_text = "Mükemmel"
+                status_color = "success"
+            # Normal yanıt (100-500ms)
+            elif response_time < 500:
+                status_icon = "🟡"
+                status_text = "İyi"
+                status_color = "info"
+            # Yavaş yanıt (> 500ms)
+            else:
+                status_icon = "🟠"
+                status_text = "Yavaş"
+                status_color = "warning"
+            
+            st.sidebar.success(f"{status_icon} Bağlantı Aktif")
+            st.sidebar.caption(f"Yanıt süresi: {response_time:.0f}ms ({status_text})")
+            
+            # Performans göstergesi
+            performance_percentage = min(100, max(0, (500 - response_time) / 500 * 100))
+            st.sidebar.progress(performance_percentage / 100, text=f"⚡ Performans: {performance_percentage:.0f}%")
+            
+        else:
+            st.sidebar.error(f"🔴 Bağlantı Hatası ({response.status_code})")
+            st.sidebar.caption("Sunucu yanıt veriyor ama hata döndürüyor")
+            
+    except requests.exceptions.Timeout:
+        st.sidebar.error("⏰ Zaman Aşımı")
+        st.sidebar.caption("API 3 saniye içinde yanıt vermedi")
+    except requests.exceptions.ConnectionError:
+        st.sidebar.error("🔌 Bağlantı Yok")
+        st.sidebar.caption("Backend çalışmıyor olabilir")
+    except Exception as e:
+        st.sidebar.error("❌ Bilinmeyen Hata")
+        st.sidebar.caption(f"Hata: {str(e)[:50]}...")
+
+def handle_api_error(error_type, error_message, response=None):
+    """API hatalarını kullanıcı dostu şekilde göster"""
+    
+    error_templates = {
+        "timeout": {
+            "icon": "⏰",
+            "title": "Yanıt Zaman Aşımı",
+            "message": "AI çok uzun süre düşündü ve yanıt veremedi.",
+            "suggestions": [
+                "Daha kısa bir mesaj deneyin",
+                "Maksimum token sayısını azaltın",
+                "İnternet bağlantınızı kontrol edin"
+            ]
+        },
+        "connection": {
+            "icon": "🔌",
+            "title": "Bağlantı Hatası",
+            "message": "AI sunucusuna bağlanılamıyor.",
+            "suggestions": [
+                "Backend'in çalıştığından emin olun",
+                "İnternet bağlantınızı kontrol edin",
+                "API URL'sini kontrol edin"
+            ]
+        },
+        "server_error": {
+            "icon": "🚨",
+            "title": "Sunucu Hatası",
+            "message": "AI sunucusunda bir sorun oluştu.",
+            "suggestions": [
+                "Birkaç dakika bekleyin",
+                "Mesajı tekrar gönderin",
+                "Farklı bir model deneyin"
+            ]
+        },
+        "rate_limit": {
+            "icon": "🚦",
+            "title": "Hız Limiti",
+            "message": "Çok fazla istek gönderdiniz.",
+            "suggestions": [
+                "Birkaç dakika bekleyin",
+                "Mesaj gönderme hızınızı azaltın"
+            ]
+        },
+        "authentication": {
+            "icon": "🔐",
+            "title": "Kimlik Doğrulama Hatası",
+            "message": "Oturum süreniz dolmuş olabilir.",
+            "suggestions": [
+                "Tekrar giriş yapın",
+                "Sayfayı yenileyin"
+            ]
+        },
+        "unknown": {
+            "icon": "❓",
+            "title": "Bilinmeyen Hata",
+            "message": "Beklenmeyen bir hata oluştu.",
+            "suggestions": [
+                "Sayfayı yenileyin",
+                "Tekrar deneyin",
+                "Sorun devam ederse bildirin"
+            ]
+        }
+    }
+    
+    # Hata tipini belirle
+    if "timeout" in str(error_message).lower() or "timeout" in error_type:
+        error_info = error_templates["timeout"]
+    elif "connection" in str(error_message).lower() or "connection" in error_type:
+        error_info = error_templates["connection"]
+    elif "rate limit" in str(error_message).lower():
+        error_info = error_templates["rate_limit"]
+    elif "authentication" in str(error_message).lower() or "401" in str(error_message):
+        error_info = error_templates["authentication"]
+    elif response and response.status_code >= 500:
+        error_info = error_templates["server_error"]
+    else:
+        error_info = error_templates["unknown"]
+    
+    # Hata mesajını göster
+    st.error(f"{error_info['icon']} **{error_info['title']}**")
+    st.info(f"💡 {error_info['message']}")
+    
+    # Önerileri göster
+    with st.expander("🔧 Çözüm Önerileri", expanded=False):
+        for i, suggestion in enumerate(error_info['suggestions'], 1):
+            st.markdown(f"{i}. {suggestion}")
+    
+    # Tekrar deneme butonu
+    if st.button("🔄 Tekrar Dene", key=f"retry_{int(time.time())}"):
+        st.rerun()
+
+def show_typing_animation():
+    """Yazma animasyonu göster"""
+    # Basit yazma animasyonu
+    typing_indicators = ["🤔 Düşünüyor", "🤔 Düşünüyor.", "🤔 Düşünüyor..", "🤔 Düşünüyor..."]
+    
+    # Progress bar ile animasyon
+    progress_bar = st.progress(0)
+    status_text = st.empty()
+    
+    for i in range(4):
+        progress_bar.progress((i + 1) / 4)
+        status_text.text(typing_indicators[i])
+        time.sleep(0.5)
+    
+    return progress_bar, status_text
 
 # Ana başlık
 st.markdown("""
@@ -1602,19 +1956,63 @@ else:
             st.session_state.messages = []
             st.rerun()
         
-        # API durumu kontrolü
-        st.markdown("---")
-        st.markdown("## 📊 API Durumu")
+        # API durumu ve token durumu
+        display_api_status_sidebar()
         
-        try:
-            response = requests.get(f"{st.session_state.api_url}/health", timeout=5)
-            if response.status_code == 200:
-                st.success("✅ API Bağlantısı Aktif")
-            else:
-                st.error("❌ API Bağlantısı Hatası")
-        except:
-            st.error("❌ API Bağlantısı Yok")
-            st.info("Backend'i başlatmayı unutmayın!")
+        # Token durumu (eğer varsa)
+        if hasattr(st.session_state, 'current_token_info') and st.session_state.current_token_info:
+            display_token_status_sidebar(st.session_state.current_token_info)
+        else:
+            # Token bilgisi yoksa varsayılan göster
+            st.sidebar.markdown("---")
+            st.sidebar.markdown("## 🔢 Token Durumu")
+            st.sidebar.info("💬 Mesaj gönderin, token durumu burada görünecek")
+            
+            # Varsayılan token bilgisi
+            default_token_info = {
+                "current_tokens": 0,
+                "model_limit": 8192,
+                "available_tokens": 8192,
+                "warning_level": "safe",
+                "warning_message": ""
+            }
+            display_token_status_sidebar(default_token_info)
+        
+        # Dil kalite ayarları
+        st.sidebar.markdown("---")
+        st.sidebar.markdown("## 🌍 Dil Kalite Kontrolü")
+        
+        # Kalite kontrolü açma/kapama
+        if 'turkish_quality_check' not in st.session_state:
+            st.session_state.turkish_quality_check = True
+        
+        quality_check = st.sidebar.checkbox(
+            "🔍 Kalite Kontrolü",
+            value=st.session_state.turkish_quality_check,
+            help="Tüm dillerdeki yanıtların kalitesini kontrol et"
+        )
+        
+        if quality_check != st.session_state.turkish_quality_check:
+            st.session_state.turkish_quality_check = quality_check
+            st.sidebar.success("✅ Kalite kontrolü güncellendi!")
+        
+        # Kalite eşiği
+        if st.session_state.turkish_quality_check:
+            if 'quality_threshold' not in st.session_state:
+                st.session_state.quality_threshold = 80
+            
+            threshold = st.sidebar.slider(
+                "📊 Kalite Eşiği",
+                min_value=50,
+                max_value=95,
+                value=st.session_state.quality_threshold,
+                step=5,
+                help="Bu skorun altındaki yanıtlar için uyarı göster"
+            )
+            
+            if threshold != st.session_state.quality_threshold:
+                st.session_state.quality_threshold = threshold
+                st.sidebar.success(f"✅ Kalite eşiği: {threshold}")
 
     # Mevcut oturum bilgisi
     if st.session_state.current_session_id:
@@ -1670,34 +2068,35 @@ else:
         with st.chat_message("assistant", avatar=st.session_state.bot_avatar):
             with st.spinner("🤔 Düşünüyor..."):
                 try:
-                    # API'ye istek gönder (sadece kullanıcı mesajını gönder, backend geçmişi alacak)
                     request_data = {
-                        "message": prompt,  # Sadece kullanıcının mesajını gönder
+                        "message": prompt,
                         "model": model,
                         "temperature": temperature,
                         "max_tokens": max_tokens,
-                        "system_message": st.session_state.system_message  # Sistem mesajını ekle
+                        "system_message": st.session_state.system_message
                     }
                     
-                    # Eğer aktif oturum varsa session_id ekle
                     if st.session_state.current_session_id:
                         request_data["session_id"] = st.session_state.current_session_id
                     
+                    # API çağrısı
+                    start_time = time.time()
                     response = requests.post(
                         f"{st.session_state.api_url}/chat",
                         json=request_data,
                         timeout=30,
                         cookies=st.session_state.get('cookies', {})
                     )
+                    response_time = time.time() - start_time
                     
                     if response.status_code == 200:
                         data = response.json()
                         bot_response = data["response"]
                         
-                        # Session ID'yi kaydet (yeni oturum oluşturulmuşsa)
+                        # Session ID'yi kaydet
                         if "session_id" in data and not st.session_state.current_session_id:
                             st.session_state.current_session_id = data["session_id"]
-                            load_sessions()  # Oturum listesini güncelle
+                            load_sessions()
                         
                         # Bot mesajını ekle
                         bot_message = {
@@ -1707,21 +2106,52 @@ else:
                         }
                         st.session_state.messages.append(bot_message)
                         
-                        # Bot yanıtını göster (avatar zaten chat_message'da ayarlandı)
+                        # Bot yanıtını göster
                         rendered_response = render_message_content(bot_response)
                         st.markdown(rendered_response, unsafe_allow_html=True)
                         st.caption(bot_message["time"])
                         
+                        # Dil kalite kontrolü (eğer aktifse)
+                        if st.session_state.get('turkish_quality_check', True):
+                            quality_check = check_language_quality(bot_response, detected_lang)
+                            threshold = st.session_state.get('quality_threshold', 80)
+                            
+                            if quality_check["score"] < threshold:
+                                language_names = {
+                                    'tr': 'Türkçe', 'en': 'İngilizce', 'de': 'Almanca', 'es': 'İspanyolca',
+                                    'fr': 'Fransızca', 'it': 'İtalyanca', 'pt': 'Portekizce', 'ru': 'Rusça',
+                                    'ja': 'Japonca', 'ko': 'Korece', 'zh': 'Çince', 'ar': 'Arapça'
+                                }
+                                lang_name = language_names.get(detected_lang, detected_lang.upper())
+                                
+                                with st.expander(f"🔍 {lang_name} Kalite Kontrolü", expanded=False):
+                                    st.warning(f"⚠️ Kalite Skoru: {quality_check['score']}/100 (Eşik: {threshold})")
+                                    if quality_check["issues"]:
+                                        st.markdown("**Tespit Edilen Sorunlar:**")
+                                        for issue in quality_check["issues"]:
+                                            st.markdown(f"• {issue}")
+                                    st.info("💡 Daha iyi bir yanıt için mesajı tekrar gönderebilirsiniz.")
+                        
+                        # Token bilgilerini kaydet
+                        if "token_info" in data:
+                            st.session_state.current_token_info = data["token_info"]
+                        
+                        # Yanıt süresi istatistiği (sadece sidebar için)
+                        if not hasattr(st.session_state, 'response_times'):
+                            st.session_state.response_times = []
+                        st.session_state.response_times.append(response_time)
+                    
                     else:
-                        error_msg = f"API Hatası: {response.status_code}"
-                        st.error(error_msg)
+                        handle_api_error("http_error", f"HTTP {response.status_code}", response)
                         
                 except requests.exceptions.Timeout:
-                    st.error("⏰ Yanıt zaman aşımına uğradı")
+                    handle_api_error("timeout", "Yanıt zaman aşımına uğradı")
+                    
                 except requests.exceptions.ConnectionError:
-                    st.error("🔌 API bağlantısı kurulamadı. Backend'in çalıştığından emin olun.")
+                    handle_api_error("connection", "API bağlantısı kurulamadı")
+                    
                 except Exception as e:
-                    st.error(f"❌ Hata: {str(e)}")
+                    handle_api_error("unknown", str(e))
 
     # Alt bilgi
     st.markdown("---")
