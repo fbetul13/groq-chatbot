@@ -2270,12 +2270,15 @@ else:
                     
                     # API çağrısı
                     start_time = time.time()
+                    print(f"DEBUG: API URL: {st.session_state.api_url}/chat")
+                    print(f"DEBUG: Request data: {request_data}")
                     response = requests.post(
                         f"{st.session_state.api_url}/chat",
                         json=request_data,
                         timeout=30,
                         cookies=st.session_state.get('cookies', {})
                     )
+                    print(f"DEBUG: Response status: {response.status_code}")
                     response_time = time.time() - start_time
                     
                     if response.status_code == 200:
