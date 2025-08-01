@@ -517,17 +517,17 @@ def chat():
                 print(f"German characters found: {german_char_count}")
                 return 'de'
             
-                    # LangDetect'i son çare olarak kullan
-        try:
-            import langdetect
-            from langdetect import detect, DetectorFactory
-            DetectorFactory.seed = 0
-            detected_lang = detect(text)
-            print(f"LangDetect result: {detected_lang}")
-            return detected_lang
-        except Exception as e:
-            print(f"LangDetect error: {e}")
-            return 'en'  # Varsayılan İngilizce
+            # LangDetect'i son çare olarak kullan
+            try:
+                import langdetect
+                from langdetect import detect, DetectorFactory
+                DetectorFactory.seed = 0
+                detected_lang = detect(text)
+                print(f"LangDetect result: {detected_lang}")
+                return detected_lang
+            except Exception as e:
+                print(f"LangDetect error: {e}")
+                return 'en'  # Varsayılan İngilizce
         
         # Son kullanıcı mesajının dilini algıla
         detected_lang = detect_language_advanced(user_message)
