@@ -108,6 +108,13 @@ def get_theme_css(theme="light"):
             color: #ffffff !important;
             border-color: #444444 !important;
         }
+        
+        /* Sidebar butonları için küçük font */
+        .sidebar .stButton > button {
+            font-size: 0.75rem !important;
+            padding: 0.25rem 0.5rem !important;
+            min-height: auto !important;
+        }
         """
     else:
         return """
@@ -194,6 +201,13 @@ def get_theme_css(theme="light"):
             background-color: #f8f9fa !important;
             color: #333333 !important;
             border-color: #cccccc !important;
+        }
+        
+        /* Sidebar butonları için küçük font */
+        .sidebar .stButton > button {
+            font-size: 0.75rem !important;
+            padding: 0.25rem 0.5rem !important;
+            min-height: auto !important;
         }
         """
 
@@ -897,7 +911,7 @@ def download_session_json(session_id):
                 data=response.content,
                 file_name=filename,
                 mime="application/json",
-                key=f"download_json_{session_id}"
+                key=f"download_json_{session_id}_{int(time.time())}"
             )
             return True
         else:
@@ -928,7 +942,69 @@ def download_session_csv(session_id):
                 data=response.content,
                 file_name=filename,
                 mime="text/csv",
-                key=f"download_csv_{session_id}"
+                key=f"download_csv_{session_id}_{int(time.time())}"
+            )
+            return True
+        else:
+            st.error("İndirme hatası")
+            return False
+    except Exception as e:
+        st.error(f"İndirme hatası: {str(e)}")
+        return False
+
+def download_session_pdf(session_id):
+    """Sohbet oturumunu PDF formatında indir"""
+    try:
+        response = requests.get(
+            f"{st.session_state.api_url}/sessions/{session_id}/download-pdf",
+            cookies=st.session_state.get('cookies', {}),
+            stream=True
+        )
+        if response.status_code == 200:
+            # Dosya adını al
+            content_disposition = response.headers.get('content-disposition', '')
+            filename = 'sohbet.pdf'
+            if 'filename=' in content_disposition:
+                filename = content_disposition.split('filename=')[1].strip('"')
+            
+            # Dosyayı indir
+            st.download_button(
+                label="📄 PDF İndir",
+                data=response.content,
+                file_name=filename,
+                mime="application/pdf",
+                key=f"download_pdf_{session_id}_{int(time.time())}"
+            )
+            return True
+        else:
+            st.error("İndirme hatası")
+            return False
+    except Exception as e:
+        st.error(f"İndirme hatası: {str(e)}")
+        return False
+
+def download_session_txt(session_id):
+    """Sohbet oturumunu TXT formatında indir"""
+    try:
+        response = requests.get(
+            f"{st.session_state.api_url}/sessions/{session_id}/download-txt",
+            cookies=st.session_state.get('cookies', {}),
+            stream=True
+        )
+        if response.status_code == 200:
+            # Dosya adını al
+            content_disposition = response.headers.get('content-disposition', '')
+            filename = 'sohbet.txt'
+            if 'filename=' in content_disposition:
+                filename = content_disposition.split('filename=')[1].strip('"')
+            
+            # Dosyayı indir
+            st.download_button(
+                label="📝 TXT İndir",
+                data=response.content,
+                file_name=filename,
+                mime="text/plain",
+                key=f"download_txt_{session_id}_{int(time.time())}"
             )
             return True
         else:
@@ -1455,6 +1531,7 @@ if not is_authenticated:
 
 # Kullanıcı giriş yapmışsa ana uygulamayı göster
 else:
+    
     # Kullanıcı bilgileri
     st.markdown(f"""
     <div class="user-info">
@@ -1511,13 +1588,45 @@ else:
                 "speed": "Hızlı",
                 "context": "8K token",
                 "icon": "💎"
+            },
+            "llama-3.1-8b-instant": {
+                "name": "Llama 3.1 8B Instant",
+                "description": "Meta'nın ultra hızlı anlık yanıt modeli",
+                "strengths": "Hızlı yanıt, genel sohbet, kodlama",
+                "speed": "Çok Hızlı",
+                "context": "131K token",
+                "icon": "⚡"
+            },
+            "llama-3.3-70b-versatile": {
+                "name": "Llama 3.3 70B Versatile",
+                "description": "Meta'nın en güçlü çok amaçlı modeli",
+                "strengths": "Karmaşık analiz, yaratıcılık, uzun metinler",
+                "speed": "Orta",
+                "context": "131K token",
+                "icon": "🧠"
+            },
+            "qwen/qwen3-32b": {
+                "name": "Qwen 3 32B",
+                "description": "Alibaba'nın gelişmiş çok dilli modeli",
+                "strengths": "Çok dilli, akıl yürütme, ajan yetenekleri",
+                "speed": "Hızlı",
+                "context": "32K token",
+                "icon": "🌟"
+            },
+            "moonshotai/kimi-k2-instruct": {
+                "name": "Kimi K2 Instruct",
+                "description": "Moonshot AI'nin 1T parametreli dev modeli",
+                "strengths": "Gelişmiş araç kullanımı, ajan zekası, karmaşık görevler",
+                "speed": "Orta",
+                "context": "32K token",
+                "icon": "🚀"
             }
         }
         
         # Model seçimi
         model = st.selectbox(
             "🤖 AI Model Seçin:",
-            ["llama3-8b-8192", "mixtral-8x7b-32768", "gemma2-9b-it"],
+            ["llama3-8b-8192", "mixtral-8x7b-32768", "gemma2-9b-it", "llama-3.1-8b-instant", "llama-3.3-70b-versatile", "qwen/qwen3-32b", "moonshotai/kimi-k2-instruct"],
             format_func=lambda x: f"{model_info[x]['icon']} {model_info[x]['name']}",
             help="Kullanılacak AI modelini seçin"
         )
@@ -1544,6 +1653,14 @@ else:
             st.info("💡 **Öneri:** Karmaşık analiz ve uzun metinler için ideal")
         elif model == "gemma2-9b-it":
             st.info("💡 **Öneri:** Eğitim ve öğretim için ideal")
+        elif model == "llama-3.1-8b-instant":
+            st.info("💡 **Öneri:** Hızlı yanıt gerektiren sohbetler için ideal")
+        elif model == "llama-3.3-70b-versatile":
+            st.info("💡 **Öneri:** Karmaşık analiz ve yaratıcı görevler için ideal")
+        elif model == "qwen/qwen3-32b":
+            st.info("💡 **Öneri:** Çok dilli sohbet ve akıl yürütme için ideal")
+        elif model == "moonshotai/kimi-k2-instruct":
+            st.info("💡 **Öneri:** Gelişmiş araç kullanımı ve ajan görevleri için ideal")
         
         # Sıcaklık ayarı
         temperature = st.slider(
@@ -1949,7 +2066,7 @@ else:
                 # İndirme ve temizleme butonları (sadece aktif oturum için)
                 if is_active and message_count > 0:
                     st.markdown("**📥 İndirme Seçenekleri:**")
-                    col1, col2, col3 = st.columns(3)
+                    col1, col2, col3, col4, col5 = st.columns(5)
                     
                     with col1:
                         if st.button("📄 JSON", key=f"download_json_{session_id}", help="JSON formatında indir"):
@@ -1960,6 +2077,14 @@ else:
                             download_session_csv(session_id)
                     
                     with col3:
+                        if st.button("📄 PDF", key=f"download_pdf_{session_id}", help="PDF formatında indir"):
+                            download_session_pdf(session_id)
+                    
+                    with col4:
+                        if st.button("📝 TXT", key=f"download_txt_{session_id}", help="TXT formatında indir"):
+                            download_session_txt(session_id)
+                    
+                    with col5:
                         if st.button("🧹 Temizle", key=f"clear_{session_id}", help="Sohbet geçmişini temizle"):
                             clear_session_messages(session_id)
                 
@@ -2064,40 +2189,35 @@ else:
                 rendered_content = render_message_content(message["content"])
                 st.markdown(rendered_content, unsafe_allow_html=True)
                 st.caption(message["time"])
-        
-        # Bot mesajları için butonları sadece son bot mesajının altında göster
-        bot_messages = [i for i, msg in enumerate(st.session_state.messages) if msg["role"] == "assistant"]
-        if bot_messages:
-            last_bot_index = bot_messages[-1]
-            last_bot_message = st.session_state.messages[last_bot_index]
-            
-            # Sadece son bot mesajı için butonlar göster
-            with st.container():
-                col1, col2, col3 = st.columns([1, 1, 6])
                 
-                with col1:
-                    # Yeniden sor butonu (küçük)
-                    if st.button("🔄", key="resend_last", help="Bu soruyu tekrar sor", use_container_width=True):
-                        # Aynı mesajı tekrar gönder
-                        if last_bot_index > 0 and st.session_state.messages[last_bot_index-1]["role"] == "user":
-                            original_message = st.session_state.messages[last_bot_index-1]["content"]
-                            # Mesajı doğrudan gönder, rerun kullanma
-                            st.session_state.auto_send_message = original_message
-                
-                with col2:
-                    # Kopyala butonu (küçük)
-                    if st.button("📋", key="copy_last", help="Yanıtı panoya kopyala", use_container_width=True):
-                        # Mesajı panoya kopyala
-                        try:
-                            import pyperclip
-                            pyperclip.copy(last_bot_message["content"])
-                            st.success("✅")
-                        except ImportError:
-                            st.info("📋")
-                
-                with col3:
-                    # Boş alan
-                    st.markdown("")
+                # Sadece son bot mesajı için butonlar göster
+                bot_messages = [j for j, msg in enumerate(st.session_state.messages) if msg["role"] == "assistant"]
+                if bot_messages and i == bot_messages[-1]:  # Bu son bot mesajı mı?
+                    col1, col2, col3 = st.columns([1, 1, 6])
+                    
+                    with col1:
+                        # Yeniden sor butonu (küçük)
+                        if st.button("🔄", key=f"resend_{i}", help="Bu soruyu tekrar sor", use_container_width=True):
+                            # Aynı mesajı tekrar gönder
+                            if i > 0 and st.session_state.messages[i-1]["role"] == "user":
+                                original_message = st.session_state.messages[i-1]["content"]
+                                # Mesajı doğrudan gönder, rerun kullanma
+                                st.session_state.auto_send_message = original_message
+                    
+                    with col2:
+                        # Kopyala butonu (küçük)
+                        if st.button("📋", key=f"copy_{i}", help="Yanıtı panoya kopyala", use_container_width=True):
+                            # Mesajı panoya kopyala
+                            try:
+                                import pyperclip
+                                pyperclip.copy(message["content"])
+                                st.success("✅")
+                            except ImportError:
+                                st.info("📋")
+                    
+                    with col3:
+                        # Boş alan
+                        st.markdown("")
 
     # Kullanıcı girişi
     # Otomatik gönderilen mesaj varsa onu kullan
@@ -2206,6 +2326,9 @@ else:
                         if not hasattr(st.session_state, 'response_times'):
                             st.session_state.response_times = []
                         st.session_state.response_times.append(response_time)
+                        
+                        # Otomatik kaydırma için sayfayı yenile
+                        st.session_state.auto_scroll = True
                     
                     else:
                         handle_api_error("http_error", f"HTTP {response.status_code}", response)
@@ -2251,4 +2374,9 @@ else:
         "🤖 AI Chatbot - Groq API ile güçlendirilmiş"
         "</div>",
         unsafe_allow_html=True
-    ) 
+    )
+    
+    # Otomatik kaydırma için boşluk
+    if st.session_state.get('auto_scroll', False):
+        st.markdown("<br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br>", unsafe_allow_html=True)
+        st.session_state.auto_scroll = False 

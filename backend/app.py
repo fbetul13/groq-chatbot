@@ -12,6 +12,13 @@ import secrets
 import csv
 import io
 import tiktoken
+from reportlab.lib.pagesizes import letter, A4
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, PageBreak
+from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+from reportlab.lib.units import inch
+from reportlab.lib.colors import black, blue, gray
+from reportlab.pdfbase import pdfmetrics
+from reportlab.pdfbase.ttfonts import TTFont
 
 # .env dosyasını yükle
 load_dotenv()
@@ -81,6 +88,118 @@ init_db()
 def hash_password(password):
     return hashlib.sha256(password.encode()).hexdigest()
 
+# PDF oluşturma fonksiyonu
+def create_pdf_from_session(session_data, messages):
+    """Sohbet oturumunu PDF formatında oluştur"""
+    buffer = io.BytesIO()
+    doc = SimpleDocTemplate(buffer, pagesize=A4, rightMargin=72, leftMargin=72, topMargin=72, bottomMargin=18)
+    
+    # Stil tanımlamaları
+    styles = getSampleStyleSheet()
+    title_style = ParagraphStyle(
+        'CustomTitle',
+        parent=styles['Heading1'],
+        fontSize=16,
+        spaceAfter=30,
+        alignment=1  # Ortalanmış
+    )
+    
+    user_style = ParagraphStyle(
+        'UserMessage',
+        parent=styles['Normal'],
+        fontSize=10,
+        spaceAfter=12,
+        leftIndent=20,
+        borderWidth=1,
+        borderColor=blue,
+        borderPadding=8,
+        backColor=gray
+    )
+    
+    bot_style = ParagraphStyle(
+        'BotMessage',
+        parent=styles['Normal'],
+        fontSize=10,
+        spaceAfter=12,
+        leftIndent=20,
+        borderWidth=1,
+        borderColor=black,
+        borderPadding=8
+    )
+    
+    info_style = ParagraphStyle(
+        'Info',
+        parent=styles['Normal'],
+        fontSize=8,
+        spaceAfter=6,
+        textColor=gray
+    )
+    
+    # PDF içeriği
+    story = []
+    
+    # Başlık
+    story.append(Paragraph(f"🤖 AI Chatbot - Sohbet Raporu", title_style))
+    story.append(Spacer(1, 20))
+    
+    # Oturum bilgileri
+    story.append(Paragraph(f"<b>Oturum Adı:</b> {session_data['session_name']}", styles['Normal']))
+    story.append(Paragraph(f"<b>Oluşturulma:</b> {session_data['created_at']}", styles['Normal']))
+    story.append(Paragraph(f"<b>Son Güncelleme:</b> {session_data['updated_at']}", styles['Normal']))
+    story.append(Paragraph(f"<b>Toplam Mesaj:</b> {len(messages)}", styles['Normal']))
+    story.append(Spacer(1, 20))
+    
+    # Mesajlar
+    for i, msg in enumerate(messages):
+        role = "👤 Kullanıcı" if msg['role'] == 'user' else "🤖 AI Asistan"
+        content = msg['content'].replace('\n', '<br/>')
+        timestamp = msg['timestamp']
+        
+        # Mesaj başlığı
+        story.append(Paragraph(f"<b>{role}</b> - {timestamp}", info_style))
+        
+        # Mesaj içeriği
+        if msg['role'] == 'user':
+            story.append(Paragraph(content, user_style))
+        else:
+            story.append(Paragraph(content, bot_style))
+        
+        story.append(Spacer(1, 10))
+    
+    # PDF oluştur
+    doc.build(story)
+    buffer.seek(0)
+    return buffer
+
+# TXT oluşturma fonksiyonu
+def create_txt_from_session(session_data, messages):
+    """Sohbet oturumunu TXT formatında oluştur"""
+    buffer = io.StringIO()
+    
+    # Başlık
+    buffer.write("🤖 AI Chatbot - Sohbet Raporu\n")
+    buffer.write("=" * 50 + "\n\n")
+    
+    # Oturum bilgileri
+    buffer.write(f"Oturum Adı: {session_data['session_name']}\n")
+    buffer.write(f"Oluşturulma: {session_data['created_at']}\n")
+    buffer.write(f"Son Güncelleme: {session_data['updated_at']}\n")
+    buffer.write(f"Toplam Mesaj: {len(messages)}\n")
+    buffer.write("-" * 50 + "\n\n")
+    
+    # Mesajlar
+    for i, msg in enumerate(messages):
+        role = "👤 Kullanıcı" if msg['role'] == 'user' else "🤖 AI Asistan"
+        content = msg['content']
+        timestamp = msg['timestamp']
+        
+        buffer.write(f"[{timestamp}] {role}:\n")
+        buffer.write(f"{content}\n")
+        buffer.write("-" * 30 + "\n\n")
+    
+    buffer.seek(0)
+    return buffer
+
 # Token sayımı fonksiyonları
 def get_token_count(text, model="llama3-8b-8192"):
     """Metindeki token sayısını hesapla"""
@@ -113,11 +232,15 @@ def check_token_limit(messages, max_tokens, model="llama3-8b-8192"):
         # Model limitlerini tanımla (yaklaşık değerler)
         model_limits = {
             "llama3-8b-8192": 8192,
-            "llama3.1-8b-instant": 8192,
             "llama3.1-70b-8192": 8192,
             "llama3.1-405b-8192": 8192,
             "mixtral-8x7b-32768": 32768,
-            "gemma-7b-it": 8192
+            "gemma-7b-it": 8192,
+            "llama-3.1-8b-instant": 131072,
+            "llama-3.3-70b-versatile": 131072,
+            "qwen/qwen3-32b": 32768,
+            "moonshotai/kimi-k2-instruct": 32768,
+            "gemma2-9b-it": 8192
         }
         
         # Model limitini al (varsayılan: 8192)
@@ -1163,6 +1286,147 @@ def download_session_csv(session_id):
             as_attachment=True,
             download_name=filename,
             mimetype='text/csv'
+        )
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/sessions/<session_id>/download-pdf', methods=['GET'])
+@require_auth
+def download_session_pdf(session_id):
+    """Sohbet oturumunu PDF formatında indir"""
+    try:
+        user_id = session['user_id']
+        conn = sqlite3.connect('chatbot.db')
+        cursor = conn.cursor()
+        
+        # Session'ın bu kullanıcıya ait olduğunu kontrol et
+        cursor.execute(
+            'SELECT user_id, session_name, created_at, updated_at FROM chat_sessions WHERE session_id = ?',
+            (session_id,)
+        )
+        session_data = cursor.fetchone()
+        
+        if not session_data or session_data[0] != user_id:
+            conn.close()
+            return jsonify({'error': 'Access denied to this session'}), 403
+        
+        session_name = session_data[1]
+        created_at = session_data[2]
+        updated_at = session_data[3]
+        
+        # Mesajları al
+        cursor.execute('''
+            SELECT role, content, timestamp, model, temperature, max_tokens
+            FROM messages 
+            WHERE session_id = ? 
+            ORDER BY timestamp ASC
+        ''', (session_id,))
+        messages = cursor.fetchall()
+        conn.close()
+        
+        # Mesajları formatla
+        formatted_messages = []
+        for msg in messages:
+            formatted_messages.append({
+                'role': msg[0],
+                'content': msg[1],
+                'timestamp': msg[2],
+                'model': msg[3],
+                'temperature': msg[4],
+                'max_tokens': msg[5]
+            })
+        
+        # Session verilerini hazırla
+        session_info = {
+            'session_name': session_name,
+            'created_at': created_at,
+            'updated_at': updated_at
+        }
+        
+        # PDF oluştur
+        pdf_buffer = create_pdf_from_session(session_info, formatted_messages)
+        
+        filename = f"{session_name.replace(' ', '_')}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf"
+        
+        return send_file(
+            pdf_buffer,
+            as_attachment=True,
+            download_name=filename,
+            mimetype='application/pdf'
+        )
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/sessions/<session_id>/download-txt', methods=['GET'])
+@require_auth
+def download_session_txt(session_id):
+    """Sohbet oturumunu TXT formatında indir"""
+    try:
+        user_id = session['user_id']
+        conn = sqlite3.connect('chatbot.db')
+        cursor = conn.cursor()
+        
+        # Session'ın bu kullanıcıya ait olduğunu kontrol et
+        cursor.execute(
+            'SELECT user_id, session_name, created_at, updated_at FROM chat_sessions WHERE session_id = ?',
+            (session_id,)
+        )
+        session_data = cursor.fetchone()
+        
+        if not session_data or session_data[0] != user_id:
+            conn.close()
+            return jsonify({'error': 'Access denied to this session'}), 403
+        
+        session_name = session_data[1]
+        created_at = session_data[2]
+        updated_at = session_data[3]
+        
+        # Mesajları al
+        cursor.execute('''
+            SELECT role, content, timestamp, model, temperature, max_tokens
+            FROM messages 
+            WHERE session_id = ? 
+            ORDER BY timestamp ASC
+        ''', (session_id,))
+        messages = cursor.fetchall()
+        conn.close()
+        
+        # Mesajları formatla
+        formatted_messages = []
+        for msg in messages:
+            formatted_messages.append({
+                'role': msg[0],
+                'content': msg[1],
+                'timestamp': msg[2],
+                'model': msg[3],
+                'temperature': msg[4],
+                'max_tokens': msg[5]
+            })
+        
+        # Session verilerini hazırla
+        session_info = {
+            'session_name': session_name,
+            'created_at': created_at,
+            'updated_at': updated_at
+        }
+        
+        # TXT oluştur
+        txt_buffer = create_txt_from_session(session_info, formatted_messages)
+        txt_content = txt_buffer.getvalue()
+        
+        # BytesIO'ya çevir
+        txt_bytes = io.BytesIO(txt_content.encode('utf-8'))
+        txt_bytes.seek(0)
+        
+        filename = f"{session_name.replace(' ', '_')}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.txt"
+        
+        return send_file(
+            txt_bytes,
+            as_attachment=True,
+            download_name=filename,
+            mimetype='text/plain'
         )
         
     except Exception as e:

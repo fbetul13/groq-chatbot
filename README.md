@@ -242,7 +242,7 @@ API'nin çalışır durumda olup olmadığını kontrol eder.
 
 ### Model ve Parametre Ayarları
 Streamlit arayüzünden sidebar'da şu ayarları yapabilirsiniz:
-- **Model Seçimi**: llama3-8b-8192, mixtral-8x7b-32768, gemma2-9b-it
+- **Model Seçimi**: llama3-8b-8192, mixtral-8x7b-32768, gemma2-9b-it, llama-3.1-8b-instant, llama-3.3-70b-versatile, qwen/qwen3-32b, moonshotai/kimi-k2-instruct
 - **Sıcaklık**: 0.0-2.0 arası yaratıcılık seviyesi
 - **Maksimum Token**: 100-4096 arası yanıt uzunluğu
 
