@@ -2280,7 +2280,11 @@ else:
                     
                     if response.status_code == 200:
                         data = response.json()
-                        bot_response = data["response"]
+                        print(f"Backend response: {data}")  # Debug için
+                        if "response" not in data:
+                            st.error(f"Backend yanıtında 'response' anahtarı yok: {data}")
+                        else:
+                            bot_response = data["response"]
                         
                         # Session ID'yi kaydet
                         if "session_id" in data and not st.session_state.current_session_id:
