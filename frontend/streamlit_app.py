@@ -9,6 +9,7 @@ import emoji
 import random
 import langdetect
 import pandas as pd
+import os
 from langdetect import detect, DetectorFactory
 
 # Sayfa konfigürasyonu
@@ -694,7 +695,9 @@ if "messages" not in st.session_state:
     st.session_state.messages = []
 
 if "api_url" not in st.session_state:
-            st.session_state.api_url = "http://localhost:5002/api"
+    # Environment variable'dan al, yoksa localhost kullan
+    api_url = os.environ.get('BACKEND_API_URL', 'http://localhost:5002/api')
+    st.session_state.api_url = api_url
 
 if "current_session_id" not in st.session_state:
     st.session_state.current_session_id = None

@@ -16,6 +16,10 @@ Bu proje, Groq API kullanarak ChatGPT benzeri bir chatbot uygulamasıdır. Backe
 - **Türkçe Destek**: Tam Türkçe arayüz
 - **Mesaj Geçmişi**: Tüm mesajları kalıcı olarak saklama
 - **Güvenlik**: Şifre hash'leme ve session yönetimi
+- **📄 Export Özellikleri**: JSON, CSV, PDF ve TXT formatlarında sohbet indirme
+- **🌍 Çoklu Dil Desteği**: 100+ dilde otomatik dil algılama ve yanıt
+- **🔍 Kalite Kontrolü**: Yanıt kalitesini kontrol etme
+- **📱 Responsive Tasarım**: Mobil ve masaüstü uyumlu
 
 ## 📋 Gereksinimler
 
@@ -299,6 +303,74 @@ Bu proje MIT lisansı altında lisanslanmıştır.
 3. Commit yapın (`git commit -m 'Add amazing feature'`)
 4. Push yapın (`git push origin feature/amazing-feature`)
 5. Pull Request oluşturun
+
+## 🚀 Deployment (Canlıya Alma)
+
+### Render ile Deployment (Önerilen)
+
+1. **Render hesabı oluşturun**: [render.com](https://render.com) adresinden ücretsiz hesap oluşturun
+
+2. **GitHub repository'nizi bağlayın**:
+   - Render Dashboard'da "New +" > "Blueprint" seçin
+   - GitHub repository'nizi seçin
+   - `render.yaml` dosyası otomatik olarak algılanacak
+
+3. **Environment Variables ayarlayın**:
+   - `GROQ_API_KEY`: Groq API anahtarınız
+   - `SECRET_KEY`: Güvenlik için rastgele bir anahtar (otomatik oluşturulabilir)
+
+4. **Deploy edin**:
+   - Render otomatik olarak backend ve frontend servislerini oluşturacak
+   - Backend: `https://your-app-name.onrender.com`
+   - Frontend: `https://your-app-name-frontend.onrender.com`
+
+### Heroku ile Deployment
+
+1. **Heroku CLI kurulumu**:
+```bash
+# macOS
+brew install heroku/brew/heroku
+
+# Windows
+# Heroku CLI'ı resmi siteden indirin
+```
+
+2. **Heroku uygulaması oluşturun**:
+```bash
+heroku create your-app-name
+```
+
+3. **Environment variables ayarlayın**:
+```bash
+heroku config:set GROQ_API_KEY=your_groq_api_key
+heroku config:set SECRET_KEY=your_secret_key
+```
+
+4. **Deploy edin**:
+```bash
+git push heroku main
+```
+
+### Railway ile Deployment
+
+1. **Railway hesabı oluşturun**: [railway.app](https://railway.app)
+
+2. **GitHub repository'nizi bağlayın**
+
+3. **Environment variables ayarlayın**:
+   - `GROQ_API_KEY`
+   - `SECRET_KEY`
+
+4. **Otomatik deployment** başlayacak
+
+### AWS/DigitalOcean ile Deployment
+
+Daha gelişmiş deployment için:
+
+1. **VPS/EC2 instance oluşturun**
+2. **Docker kullanın** (Dockerfile eklenebilir)
+3. **Nginx reverse proxy** kurun
+4. **SSL sertifikası** ekleyin (Let's Encrypt)
 
 ## 📞 Destek
 
