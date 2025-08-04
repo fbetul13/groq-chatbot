@@ -1246,7 +1246,7 @@ def edit_message(message_index, new_content):
         return False
 
 def process_markdown_and_emoji(text):
-    """Markdown ve emoji işleme"""
+    """Markdown ve emoji işleme (kod blokları hariç)"""
     if not text:
         return text
     
@@ -1265,7 +1265,7 @@ def process_markdown_and_emoji(text):
     # Satır içi kod bloklarını da sakla
     text = re.sub(r'`[^`]+`', save_code_block, text)
     
-    # Markdown formatlaması
+    # Markdown formatlaması (kod blokları hariç)
     # Başlıklar
     text = re.sub(r'^### (.*$)', r'<h3>\1</h3>', text, flags=re.MULTILINE)
     text = re.sub(r'^## (.*$)', r'<h2>\1</h2>', text, flags=re.MULTILINE)
@@ -1285,35 +1285,261 @@ def process_markdown_and_emoji(text):
     # Satır sonları
     text = text.replace('\n', '<br>')
     
-    # Kod bloklarını geri yükle
+    # Kod bloklarını geri yükle (işlenmemiş olarak)
     for i, code_block in enumerate(code_blocks):
         text = text.replace(f"__CODE_BLOCK_{i}__", code_block)
     
     return text
+
+def highlight_code(code, language=None):
+    """Kod için syntax highlighting uygula"""
+    try:
+        from pygments import highlight
+        from pygments.lexers import get_lexer_by_name, TextLexer
+        from pygments.formatters import HtmlFormatter
+        
+        # Dil belirtilmemişse otomatik algıla
+        if not language or language == 'text':
+            # Gelişmiş dil algılama
+            code_lower = code.strip().lower()
+            
+            # PHP
+            if code_lower.startswith('<?php') or code_lower.startswith('<?='):
+                language = 'php'
+            # HTML/XML
+            elif code_lower.startswith('<html') or code_lower.startswith('<!doctype') or code_lower.startswith('<xml'):
+                language = 'html'
+            # Python
+            elif code_lower.startswith('import ') or code_lower.startswith('from ') or code_lower.startswith('def ') or code_lower.startswith('class '):
+                language = 'python'
+            # JavaScript/TypeScript
+            elif code_lower.startswith('function ') or code_lower.startswith('const ') or code_lower.startswith('let ') or code_lower.startswith('var ') or code_lower.startswith('export '):
+                language = 'javascript'
+            # Java
+            elif code_lower.startswith('public class') or code_lower.startswith('private ') or code_lower.startswith('package ') or code_lower.startswith('import java'):
+                language = 'java'
+            # C/C++
+            elif code_lower.startswith('#include') or code_lower.startswith('#define') or code_lower.startswith('int main'):
+                language = 'cpp'
+            # Go
+            elif code_lower.startswith('package ') or code_lower.startswith('import ') and 'fmt' in code_lower:
+                language = 'go'
+            # Rust
+            elif code_lower.startswith('fn ') or code_lower.startswith('use ') or code_lower.startswith('pub '):
+                language = 'rust'
+            # C#
+            elif code_lower.startswith('using ') or code_lower.startswith('namespace ') or code_lower.startswith('public class'):
+                language = 'csharp'
+            # Ruby
+            elif code_lower.startswith('require ') or code_lower.startswith('def ') or code_lower.startswith('class ') and 'end' in code_lower:
+                language = 'ruby'
+            # SQL
+            elif code_lower.startswith('select ') or code_lower.startswith('insert ') or code_lower.startswith('update ') or code_lower.startswith('create '):
+                language = 'sql'
+            # CSS
+            elif code_lower.startswith('@') or '{' in code_lower and ':' in code_lower:
+                language = 'css'
+            # JSON
+            elif code_lower.startswith('{') or code_lower.startswith('['):
+                language = 'json'
+            # YAML
+            elif code_lower.startswith('---') or ':' in code_lower and '\n' in code_lower:
+                language = 'yaml'
+            # Shell/Bash
+            elif code_lower.startswith('#!') or code_lower.startswith('#!/'):
+                language = 'bash'
+            # Docker
+            elif code_lower.startswith('from ') and 'docker' in code_lower:
+                language = 'dockerfile'
+            # Markdown
+            elif code_lower.startswith('#') or code_lower.startswith('##'):
+                language = 'markdown'
+            else:
+                language = 'text'
+        
+        # Lexer'ı al
+        try:
+            lexer = get_lexer_by_name(language, stripall=True)
+        except:
+            lexer = TextLexer()
+        
+        # HTML formatter
+        formatter = HtmlFormatter(
+            style='monokai',
+            noclasses=True,
+            nobackground=True,
+            prestyles="margin: 0; padding: 0;"
+        )
+        
+        # Highlight uygula
+        highlighted = highlight(code, lexer, formatter)
+        
+        # CSS stillerini ekle
+        css_styles = """
+        <style>
+        .highlight {
+            background-color: #272822;
+            border-radius: 8px;
+            padding: 16px;
+            margin: 10px 0;
+            overflow-x: auto;
+            border: 1px solid #3e3d32;
+        }
+        .highlight pre {
+            margin: 0;
+            padding: 0;
+            background: none;
+            border: none;
+            font-family: 'Fira Code', 'Consolas', 'Monaco', 'Courier New', monospace;
+            font-size: 14px;
+            line-height: 1.5;
+        }
+        .highlight .hll { background-color: #49483e }
+        .highlight .c { color: #75715e } /* Comment */
+        .highlight .err { color: #960050; background-color: #1e0010 } /* Error */
+        .highlight .k { color: #66d9ef } /* Keyword */
+        .highlight .l { color: #ae81ff } /* Literal */
+        .highlight .n { color: #f8f8f2 } /* Name */
+        .highlight .o { color: #f92672 } /* Operator */
+        .highlight .p { color: #f8f8f2 } /* Punctuation */
+        .highlight .ch { color: #75715e } /* Comment.Hashbang */
+        .highlight .cm { color: #75715e } /* Comment.Multiline */
+        .highlight .cp { color: #75715e } /* Comment.Preproc */
+        .highlight .cpf { color: #75715e } /* Comment.PreprocFile */
+        .highlight .c1 { color: #75715e } /* Comment.Single */
+        .highlight .cs { color: #75715e } /* Comment.Special */
+        .highlight .gd { color: #f92672 } /* Generic.Deleted */
+        .highlight .ge { font-style: italic } /* Generic.Emph */
+        .highlight .gi { color: #a6e22e } /* Generic.Inserted */
+        .highlight .gs { font-weight: bold } /* Generic.Strong */
+        .highlight .gu { color: #75715e } /* Generic.Subheading */
+        .highlight .kc { color: #66d9ef } /* Keyword.Constant */
+        .highlight .kd { color: #66d9ef } /* Keyword.Declaration */
+        .highlight .kn { color: #f92672 } /* Keyword.Namespace */
+        .highlight .kp { color: #66d9ef } /* Keyword.Pseudo */
+        .highlight .kr { color: #66d9ef } /* Keyword.Reserved */
+        .highlight .kt { color: #66d9ef } /* Keyword.Type */
+        .highlight .ld { color: #e6db74 } /* Literal.Date */
+        .highlight .m { color: #ae81ff } /* Literal.Number */
+        .highlight .s { color: #e6db74 } /* Literal.String */
+        .highlight .na { color: #a6e22e } /* Name.Attribute */
+        .highlight .nb { color: #f8f8f2 } /* Name.Builtin */
+        .highlight .nc { color: #a6e22e } /* Name.Class */
+        .highlight .no { color: #66d9ef } /* Name.Constant */
+        .highlight .nd { color: #a6e22e } /* Name.Decorator */
+        .highlight .ni { color: #f8f8f2 } /* Name.Entity */
+        .highlight .ne { color: #a6e22e } /* Name.Exception */
+        .highlight .nf { color: #a6e22e } /* Name.Function */
+        .highlight .nl { color: #f8f8f2 } /* Name.Label */
+        .highlight .nn { color: #f8f8f2 } /* Name.Namespace */
+        .highlight .nx { color: #a6e22e } /* Name.Other */
+        .highlight .py { color: #f8f8f2 } /* Name.Property */
+        .highlight .nt { color: #f92672 } /* Name.Tag */
+        .highlight .nv { color: #f8f8f2 } /* Name.Variable */
+        .highlight .ow { color: #f92672 } /* Operator.Word */
+        .highlight .w { color: #f8f8f2 } /* Text.Whitespace */
+        .highlight .mb { color: #ae81ff } /* Literal.Number.Bin */
+        .highlight .mf { color: #ae81ff } /* Literal.Number.Float */
+        .highlight .mh { color: #ae81ff } /* Literal.Number.Hex */
+        .highlight .mi { color: #ae81ff } /* Literal.Number.Integer */
+        .highlight .mo { color: #ae81ff } /* Literal.Number.Oct */
+        .highlight .sa { color: #e6db74 } /* Literal.String.Affix */
+        .highlight .sb { color: #e6db74 } /* Literal.String.Backtick */
+        .highlight .sc { color: #e6db74 } /* Literal.String.Char */
+        .highlight .dl { color: #e6db74 } /* Literal.String.Delimiter */
+        .highlight .sd { color: #e6db74 } /* Literal.String.Doc */
+        .highlight .s2 { color: #e6db74 } /* Literal.String.Double */
+        .highlight .se { color: #ae81ff } /* Literal.String.Escape */
+        .highlight .sh { color: #e6db74 } /* Literal.String.Heredoc */
+        .highlight .si { color: #e6db74 } /* Literal.String.Interpol */
+        .highlight .sx { color: #e6db74 } /* Literal.String.Other */
+        .highlight .sr { color: #e6db74 } /* Literal.String.Regex */
+        .highlight .s1 { color: #e6db74 } /* Literal.String.Single */
+        .highlight .ss { color: #e6db74 } /* Literal.String.Symbol */
+        .highlight .bp { color: #f8f8f2 } /* Name.Builtin.Pseudo */
+        .highlight .fm { color: #a6e22e } /* Name.Function.Magic */
+        .highlight .vc { color: #f8f8f2 } /* Name.Variable.Class */
+        .highlight .vg { color: #f8f8f2 } /* Name.Variable.Global */
+        .highlight .vi { color: #f8f8f2 } /* Name.Variable.Instance */
+        .highlight .vm { color: #f8f8f2 } /* Name.Variable.Magic */
+        .highlight .il { color: #ae81ff } /* Literal.Number.Integer.Long */
+        </style>
+        """
+        
+        # Dil etiketi ve kopyalama butonu için JavaScript ekle
+        language_label = language.upper() if language and language != 'text' else 'CODE'
+        copy_button = f"""
+        <div style="position: relative;">
+            <div style="position: absolute; top: 8px; left: 8px; background: #66d9ef; color: #272822; border: none; border-radius: 4px; padding: 2px 6px; font-size: 10px; font-weight: bold; font-family: monospace;">
+                {language_label}
+            </div>
+            <button onclick="copyCode(this)" style="position: absolute; top: 8px; right: 8px; background: #3e3d32; color: #f8f8f2; border: none; border-radius: 4px; padding: 4px 8px; font-size: 12px; cursor: pointer; opacity: 0.7; transition: opacity 0.2s;" onmouseover="this.style.opacity='1'" onmouseout="this.style.opacity='0.7'">
+                📋 Kopyala
+            </button>
+            <div class='highlight' style="padding-top: 32px;">{highlighted}</div>
+        </div>
+        """
+        
+        # Kopyalama JavaScript'i ekle
+        copy_script = """
+        <script>
+        function copyCode(button) {
+            const codeBlock = button.nextElementSibling.querySelector('pre');
+            const textArea = document.createElement('textarea');
+            textArea.value = codeBlock.textContent;
+            document.body.appendChild(textArea);
+            textArea.select();
+            document.execCommand('copy');
+            document.body.removeChild(textArea);
+            
+            // Buton metnini geçici olarak değiştir
+            const originalText = button.innerHTML;
+            button.innerHTML = '✅ Kopyalandı!';
+            button.style.background = '#a6e22e';
+            setTimeout(() => {
+                button.innerHTML = originalText;
+                button.style.background = '#3e3d32';
+            }, 2000);
+        }
+        </script>
+        """
+        
+        return f"{css_styles}{copy_script}{copy_button}"
+        
+    except ImportError:
+        # Pygments yoksa basit formatlama
+        return f'<div style="background-color: #272822; color: #f8f8f2; padding: 16px; border-radius: 8px; font-family: monospace; white-space: pre-wrap; margin: 10px 0; border: 1px solid #3e3d32;">{code}</div>'
+    except Exception as e:
+        # Hata durumunda basit formatlama
+        return f'<div style="background-color: #f8f9fa; padding: 10px; border-radius: 5px; border-left: 4px solid #007bff; font-family: monospace; white-space: pre-wrap; margin: 10px 0;">{code}</div>'
 
 def render_message_content(content):
     """Mesaj içeriğini render et"""
     if not content:
         return ""
     
-    # Markdown ve emoji işle
-    processed_content = process_markdown_and_emoji(content)
+    # Kod bloklarını geçici olarak sakla
+    code_blocks = []
+    def save_code_block(match):
+        language = match.group(1) if match.group(1) else None
+        code = match.group(2)
+        code_blocks.append((language, code))
+        return f"__CODE_BLOCK_{len(code_blocks)-1}__"
     
-    # Kod bloklarını özel olarak işle
-    def format_code_block(match):
-        code = match.group(1)
-        return f'<div style="background-color: #f8f9fa; padding: 10px; border-radius: 5px; border-left: 4px solid #007bff; font-family: monospace; white-space: pre-wrap; margin: 10px 0;">{code}</div>'
+    # Kod bloklarını geçici olarak sakla
+    processed_content = re.sub(r'```(\w+)?\n([\s\S]*?)```', save_code_block, content)
     
     # Satır içi kod bloklarını işle
     def format_inline_code(match):
         code = match.group(1)
-        return f'<code style="background-color: #f8f9fa; padding: 2px 4px; border-radius: 3px; font-family: monospace;">{code}</code>'
+        return f'<code style="background-color: #f8f9fa; padding: 2px 4px; border-radius: 3px; font-family: monospace; border: 1px solid #e9ecef;">{code}</code>'
     
-    # Kod bloklarını formatla
-    processed_content = re.sub(r'```(\w+)?\n([\s\S]*?)```', format_code_block, processed_content)
     processed_content = re.sub(r'`([^`]+)`', format_inline_code, processed_content)
     
-    return processed_content
+    # Markdown ve emoji işle
+    processed_content = process_markdown_and_emoji(processed_content)
+    
+    return processed_content, code_blocks
 
 def display_token_warning(token_info):
     """Token uyarısını göster"""
@@ -2717,8 +2943,35 @@ else:
             
             with st.chat_message(message["role"], avatar=avatar):
                 # Markdown ve emoji desteği ile mesajı render et
-                rendered_content = render_message_content(message["content"])
-                st.markdown(rendered_content, unsafe_allow_html=True)
+                rendered_content, code_blocks = render_message_content(message["content"])
+                
+                # Kod bloklarını ayrı ayrı render et
+                if code_blocks:
+                    # Metni parçalara ayır
+                    parts = rendered_content.split("__CODE_BLOCK_")
+                    
+                    for i, part in enumerate(parts):
+                        if i == 0:
+                            # İlk parça (kod bloğu yok)
+                            if part.strip():
+                                st.markdown(part, unsafe_allow_html=True)
+                        else:
+                            # Kod bloğu var
+                            if "_" in part:
+                                code_index = int(part.split("_")[0])
+                                remaining_text = "_".join(part.split("_")[1:])
+                                
+                                if code_index < len(code_blocks):
+                                    language, code = code_blocks[code_index]
+                                    # Streamlit'in kendi code bileşenini kullan
+                                    st.code(code, language=language if language else None)
+                                
+                                # Kalan metni render et
+                                if remaining_text.strip():
+                                    st.markdown(remaining_text, unsafe_allow_html=True)
+                else:
+                    # Kod bloğu yoksa normal render
+                    st.markdown(rendered_content, unsafe_allow_html=True)
                 
                 # Düzenleme durumunu göster
                 if message.get("edited", False):
@@ -2814,7 +3067,7 @@ else:
         # Kullanıcı mesajını göster
         with st.chat_message("user", avatar=st.session_state.user_avatar):
             # Markdown ve emoji desteği ile kullanıcı mesajını render et
-            rendered_prompt = render_message_content(prompt)
+            rendered_prompt, _ = render_message_content(prompt)
             st.markdown(rendered_prompt, unsafe_allow_html=True)
             st.caption(user_message["time"])
         
@@ -2889,7 +3142,7 @@ else:
                         st.session_state.messages.append(bot_message)
                         
                         # Bot yanıtını göster
-                        rendered_response = render_message_content(bot_response)
+                        rendered_response, _ = render_message_content(bot_response)
                         st.markdown(rendered_response, unsafe_allow_html=True)
                         st.caption(bot_message["time"])
                         
