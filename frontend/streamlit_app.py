@@ -696,21 +696,7 @@ if "messages" not in st.session_state:
 
 if "api_url" not in st.session_state:
     # Environment variable'dan al, yoksa localhost kullan
-    # Render'da backend URL'si farklı olabilir
     api_url = os.environ.get('BACKEND_API_URL', 'http://localhost:5002/api')
-    
-    # Render'da çalışıyorsa backend URL'sini otomatik tespit et
-    if os.environ.get('RENDER', False):
-        # Render'da backend servis adı genellikle proje-adı-backend şeklinde
-        render_service_name = os.environ.get('RENDER_SERVICE_NAME', '')
-        if render_service_name and 'frontend' in render_service_name.lower():
-            # Frontend servisinden backend servisine bağlan
-            backend_service_name = render_service_name.replace('frontend', 'backend')
-            api_url = f"https://{backend_service_name}.onrender.com/api"
-        else:
-            # Varsayılan backend URL'si
-            api_url = "https://chatbot-backend-u380.onrender.com/api"
-    
     st.session_state.api_url = api_url
 
 if "current_session_id" not in st.session_state:
