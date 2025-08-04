@@ -411,6 +411,7 @@ def get_user_info():
 @require_auth
 def chat():
     try:
+        print("DEBUG: Chat endpoint çağrıldı")
         data = request.get_json()
         user_message = data.get('message', '')
         session_id = data.get('session_id', None)
@@ -1467,6 +1468,46 @@ def clear_session_messages(session_id):
 @app.route('/api/health', methods=['GET'])
 def health_check():
     return jsonify({'status': 'healthy', 'message': 'Chatbot API is running'})
+
+@app.route('/', methods=['GET'])
+def root():
+    """Root endpoint - redirect to health check or return API info"""
+    return jsonify({
+        'message': 'AI Chatbot Backend API',
+        'version': '1.0.0',
+        'endpoints': {
+            'health': '/api/health',
+            'chat': '/api/chat',
+            'login': '/api/login',
+            'register': '/api/register',
+            'sessions': '/api/sessions'
+        },
+        'status': 'running'
+    })
+
+@app.errorhandler(404)
+def not_found(error):
+    """Handle 404 errors"""
+    return jsonify({
+        'error': 'Endpoint not found',
+        'message': 'The requested endpoint does not exist',
+        'available_endpoints': {
+            'root': '/',
+            'health': '/api/health',
+            'chat': '/api/chat',
+            'login': '/api/login',
+            'register': '/api/register',
+            'sessions': '/api/sessions'
+        }
+    }), 404
+
+@app.errorhandler(500)
+def internal_error(error):
+    """Handle 500 errors"""
+    return jsonify({
+        'error': 'Internal server error',
+        'message': 'An unexpected error occurred'
+    }), 500
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5002))
