@@ -1039,6 +1039,11 @@ def clear_session_messages(session_id):
     except Exception as e:
         st.error(f"Temizleme hatası: {str(e)}")
 
+def set_edit_state(message_index, content):
+    """Düzenleme durumunu ayarla"""
+    st.session_state.editing_message_index = message_index
+    st.session_state.editing_message_content = content
+
 def edit_message(message_index, new_content):
     """Mesajı düzenle ve chatbot yanıtını yeniden oluştur"""
     try:
@@ -2250,17 +2255,12 @@ else:
                 else:
                     st.caption(message["time"])
                 
-                # Kullanıcı mesajları için düzenleme butonu
+                # Kullanıcı mesajları için düzenleme butonu - direkt göster
                 if message["role"] == "user":
-                    # Düzenleme butonu
-                    if st.button("✏️ Düzenle", key=f"edit_{i}", help="Bu mesajı düzenle"):
-                        st.session_state.editing_message_index = i
-                        st.session_state.editing_message_content = message["content"]
-                        st.rerun()
+                    st.button("✏️ Düzenle", key=f"edit_{i}", help="Bu mesajı düzenle", on_click=lambda idx=i, content=message["content"]: set_edit_state(idx, content))
                 
-                # Sadece son bot mesajı için butonlar göster
-                bot_messages = [j for j, msg in enumerate(st.session_state.messages) if msg["role"] == "assistant"]
-                if bot_messages and i == bot_messages[-1]:  # Bu son bot mesajı mı?
+                # Bot mesajları için butonlar
+                if message["role"] == "assistant":
                     col1, col2, col3 = st.columns([1, 1, 6])
                     
                     with col1:
@@ -2303,7 +2303,8 @@ else:
                 if edit_message(st.session_state.editing_message_index, edited_content):
                     st.session_state.editing_message_index = None
                     st.session_state.editing_message_content = None
-                    st.rerun()
+                    # Düzenleme sonrası mesaj gönderme butonunu korumak için rerun kullanmıyoruz
+                    st.success("✅ Mesaj düzenlendi!")
         
         with col2:
             if st.button("❌ İptal", key="cancel_edit"):
