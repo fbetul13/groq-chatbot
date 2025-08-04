@@ -2303,8 +2303,7 @@ else:
                 if edit_message(st.session_state.editing_message_index, edited_content):
                     st.session_state.editing_message_index = None
                     st.session_state.editing_message_content = None
-                    # Düzenleme sonrası mesaj gönderme butonunu korumak için rerun kullanmıyoruz
-                    st.success("✅ Mesaj düzenlendi!")
+                    st.rerun()
         
         with col2:
             if st.button("❌ İptal", key="cancel_edit"):
