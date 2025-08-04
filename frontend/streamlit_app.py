@@ -823,6 +823,13 @@ def logout_user():
             st.session_state.current_session_id = None
             st.session_state.sessions = []
             st.session_state.deleted_sessions = []
+            # Arama verilerini temizle
+            if hasattr(st.session_state, 'search_results'):
+                del st.session_state.search_results
+            if hasattr(st.session_state, 'search_query'):
+                del st.session_state.search_query
+            if hasattr(st.session_state, 'last_search_params'):
+                del st.session_state.last_search_params
             st.session_state.cookies = {}
             st.success("Çıkış başarılı!")
             st.rerun()
@@ -1094,6 +1101,92 @@ def empty_trash():
             st.error("Çöp kutusu temizleme hatası")
     except Exception as e:
         st.error(f"Çöp kutusu temizleme hatası: {str(e)}")
+
+def search_messages(search_params):
+    """Mesajlarda arama yap"""
+    try:
+        response = requests.post(
+            f"{st.session_state.api_url}/search",
+            json=search_params,
+            timeout=10,
+            cookies=st.session_state.get('cookies', {})
+        )
+        if response.status_code == 200:
+            return response.json()
+        else:
+            # Hata mesajını burada gösterme, sadece None döndür
+            return None
+    except Exception as e:
+        # Hata mesajını burada gösterme, sadece None döndür
+        return None
+
+def search_sessions(query):
+    """Oturum adlarında arama yap"""
+    try:
+        response = requests.get(
+            f"{st.session_state.api_url}/search/sessions?query={query}",
+            timeout=5,
+            cookies=st.session_state.get('cookies', {})
+        )
+        if response.status_code == 200:
+            return response.json()
+        else:
+            st.error("Oturum arama hatası")
+            return None
+    except Exception as e:
+        st.error(f"Oturum arama hatası: {str(e)}")
+        return None
+
+def get_search_stats():
+    """Arama istatistiklerini getir"""
+    try:
+        response = requests.get(
+            f"{st.session_state.api_url}/search/stats",
+            timeout=5,
+            cookies=st.session_state.get('cookies', {})
+        )
+        if response.status_code == 200:
+            return response.json()
+        else:
+            return None
+    except Exception as e:
+        return None
+
+def highlight_search_term(text, search_term):
+    """Arama terimini vurgula"""
+    if not search_term or not text:
+        return text
+    
+    # Büyük/küçük harf duyarsız arama
+    import re
+    pattern = re.compile(re.escape(search_term), re.IGNORECASE)
+    highlighted_text = pattern.sub(f'<mark style="background-color: yellow; padding: 2px;">{search_term}</mark>', text)
+    return highlighted_text
+
+def perform_search(search_params, search_type="Arama"):
+    """Arama işlemini gerçekleştir"""
+    search_results = search_messages(search_params)
+    if search_results and 'messages' in search_results:
+        # Başarılı arama - hata mesajlarını temizle
+        if 'search_error' in st.session_state:
+            del st.session_state.search_error
+        
+        st.session_state.search_results = search_results
+        st.session_state.search_query = search_params.get('query', '')
+        # Arama parametrelerini sakla (sayfalama için)
+        st.session_state.last_search_params = {
+            'role': search_params.get('role'),
+            'session_id': search_params.get('session_id'),
+            'date_from': search_params.get('date_from'),
+            'date_to': search_params.get('date_to')
+        }
+        st.success(f"✅ {search_type}: {search_results['total_count']} sonuç bulundu!")
+        st.rerun()
+    else:
+        # Hata durumunda session state'e hata bilgisini kaydet
+        st.session_state.search_error = f"❌ {search_type} başarısız!"
+        # Hata mesajını gösterme, sadece session state'e kaydet
+        # st.error(f"❌ {search_type} başarısız!")
 
 def set_edit_state(message_index, content):
     """Düzenleme durumunu ayarla"""
@@ -2152,6 +2245,260 @@ else:
         
         st.markdown("---")
         
+        # Arama ve Filtreleme
+        st.markdown("## 🔍 Arama ve Filtreleme")
+        
+        # Arama sekmesi
+        search_tab1, search_tab2 = st.tabs(["📝 Mesaj Arama", "📊 İstatistikler"])
+        
+        with search_tab1:
+            # Hata mesajlarını göster
+            if 'search_error' in st.session_state:
+                st.error(st.session_state.search_error)
+                del st.session_state.search_error
+            
+            # Arama formu
+            with st.form("search_form"):
+                # Arama kriterleri seçimi
+                st.markdown("### 🎯 Arama Kriterleri")
+                st.markdown("İstediğiniz kriterleri seçin, diğerleri opsiyonel:")
+                
+                # Arama terimi (opsiyonel)
+                search_query = st.text_input(
+                    "🔍 Arama terimi (opsiyonel):",
+                    placeholder="Mesaj içeriğinde ara...",
+                    help="Mesaj içeriğinde veya oturum adında arama yapın. Boş bırakabilirsiniz."
+                )
+                
+                # Filtreler (opsiyonel)
+                col1, col2 = st.columns(2)
+                with col1:
+                    role_filter = st.selectbox(
+                        "👤 Rol Filtresi (opsiyonel):",
+                        ["Tümü", "Kullanıcı", "Bot"],
+                        help="Sadece belirli roldeki mesajları ara. 'Tümü' seçerseniz filtre uygulanmaz."
+                    )
+                
+                with col2:
+                    session_filter = st.selectbox(
+                        "📁 Oturum Filtresi (opsiyonel):",
+                        ["Tüm Oturumlar"] + [s['session_name'] for s in st.session_state.sessions],
+                        help="Belirli bir oturumda ara. 'Tüm Oturumlar' seçerseniz filtre uygulanmaz."
+                    )
+                
+                # Tarih filtreleri (opsiyonel)
+                st.markdown("### 📅 Tarih Filtreleri (opsiyonel)")
+                col1, col2 = st.columns(2)
+                with col1:
+                    date_from = st.date_input(
+                        "📅 Başlangıç Tarihi:",
+                        value=None,
+                        help="Bu tarihten sonraki mesajları ara. Boş bırakabilirsiniz."
+                    )
+                
+                with col2:
+                    date_to = st.date_input(
+                        "📅 Bitiş Tarihi:",
+                        value=None,
+                        help="Bu tarihten önceki mesajları ara. Boş bırakabilirsiniz."
+                    )
+                
+                # Hızlı arama seçenekleri
+                st.markdown("### ⚡ Hızlı Arama")
+                quick_search_col1, quick_search_col2, quick_search_col3 = st.columns(3)
+                
+                with quick_search_col1:
+                    if st.form_submit_button("📅 Bugünkü Mesajlar", use_container_width=True):
+                        today = datetime.now().date()
+                        search_params = {
+                            'date_from': today.strftime('%Y-%m-%d'),
+                            'date_to': today.strftime('%Y-%m-%d'),
+                            'limit': 50,
+                            'offset': 0
+                        }
+                        perform_search(search_params, "Bugünkü mesajlar")
+                
+                with quick_search_col2:
+                    if st.form_submit_button("👤 Sadece Benim Mesajlarım", use_container_width=True):
+                        search_params = {
+                            'role': 'user',
+                            'limit': 50,
+                            'offset': 0
+                        }
+                        perform_search(search_params, "Kullanıcı mesajları")
+                
+                with quick_search_col3:
+                    if st.form_submit_button("🤖 Sadece Bot Yanıtları", use_container_width=True):
+                        search_params = {
+                            'role': 'assistant',
+                            'limit': 50,
+                            'offset': 0
+                        }
+                        perform_search(search_params, "Bot yanıtları")
+                
+                # Genel arama butonu
+                st.markdown("### 🔍 Özel Arama")
+                search_submitted = st.form_submit_button("🔍 Ara", use_container_width=True)
+                
+                if search_submitted:
+                    # Arama parametrelerini hazırla
+                    search_params = {
+                        'query': search_query,
+                        'limit': 50,
+                        'offset': 0
+                    }
+                    
+                    # Rol filtresi
+                    if role_filter == "Kullanıcı":
+                        search_params['role'] = 'user'
+                    elif role_filter == "Bot":
+                        search_params['role'] = 'assistant'
+                    
+                    # Oturum filtresi
+                    if session_filter != "Tüm Oturumlar":
+                        selected_session = next((s for s in st.session_state.sessions if s['session_name'] == session_filter), None)
+                        if selected_session:
+                            search_params['session_id'] = selected_session['session_id']
+                    
+                    # Tarih filtreleri
+                    if date_from:
+                        search_params['date_from'] = date_from.strftime('%Y-%m-%d')
+                    if date_to:
+                        search_params['date_to'] = date_to.strftime('%Y-%m-%d')
+                    
+                    # Boş parametreleri temizle
+                    search_params = {k: v for k, v in search_params.items() if v}
+                    
+                    if search_params:
+                        perform_search(search_params, "Özel arama")
+                    else:
+                        st.warning("⚠️ En az bir arama kriteri belirtin!")
+        
+        with search_tab2:
+            # İstatistikleri göster
+            stats = get_search_stats()
+            if stats:
+                col1, col2 = st.columns(2)
+                with col1:
+                    st.metric("📊 Toplam Mesaj", f"{stats['total_messages']:,}")
+                    st.metric("👤 Kullanıcı Mesajları", f"{stats['user_messages']:,}")
+                with col2:
+                    st.metric("📁 Toplam Oturum", f"{stats['total_sessions']:,}")
+                    st.metric("🤖 Bot Mesajları", f"{stats['bot_messages']:,}")
+                
+                if stats['last_message_date']:
+                    st.info(f"📅 Son mesaj: {stats['last_message_date'][:10]}")
+                
+                if stats['most_active_day']['date']:
+                    st.success(f"🔥 En aktif gün: {stats['most_active_day']['date']} ({stats['most_active_day']['message_count']} mesaj)")
+            else:
+                st.info("📊 İstatistikler yüklenemedi")
+        
+        # Arama sonuçlarını göster
+        if hasattr(st.session_state, 'search_results') and st.session_state.search_results:
+            st.markdown("---")
+            st.markdown("## 🔍 Arama Sonuçları")
+            
+            results = st.session_state.search_results
+            search_query = st.session_state.get('search_query', '')
+            
+            # Sonuç sayısı ve arama bilgileri
+            search_info = f"📊 {results['total_count']} sonuç bulundu"
+            if search_query:
+                search_info += f" • Arama: '{search_query}'"
+            st.info(search_info)
+            
+            # Sayfalama
+            if results['has_more'] or results['offset'] > 0:
+                col1, col2, col3 = st.columns([1, 2, 1])
+                with col1:
+                    if results['offset'] > 0:
+                        if st.button("⬅️ Önceki", key="prev_page"):
+                            # Önceki sayfa
+                            new_offset = max(0, results['offset'] - results['limit'])
+                            search_params = {
+                                'query': search_query,
+                                'limit': results['limit'],
+                                'offset': new_offset
+                            }
+                            # Rol ve oturum filtrelerini geri ekle
+                            if hasattr(st.session_state, 'last_search_params'):
+                                search_params.update(st.session_state.last_search_params)
+                            
+                            new_results = search_messages(search_params)
+                            if new_results:
+                                st.session_state.search_results = new_results
+                                st.rerun()
+                
+                with col2:
+                    current_page = (results['offset'] // results['limit']) + 1
+                    total_pages = (results['total_count'] + results['limit'] - 1) // results['limit']
+                    st.caption(f"Sayfa {current_page} / {total_pages}")
+                
+                with col3:
+                    if results['has_more']:
+                        if st.button("➡️ Sonraki", key="next_page"):
+                            # Sonraki sayfa
+                            new_offset = results['offset'] + results['limit']
+                            search_params = {
+                                'query': search_query,
+                                'limit': results['limit'],
+                                'offset': new_offset
+                            }
+                            # Rol ve oturum filtrelerini geri ekle
+                            if hasattr(st.session_state, 'last_search_params'):
+                                search_params.update(st.session_state.last_search_params)
+                            
+                            new_results = search_messages(search_params)
+                            if new_results:
+                                st.session_state.search_results = new_results
+                                st.rerun()
+            
+            # Sonuçları listele
+            for i, message in enumerate(results['messages']):
+                with st.expander(f"📝 {message['session_name']} - {message['timestamp'][:16]}", expanded=False):
+                    # Mesaj rolü
+                    role_icon = "👤" if message['role'] == 'user' else "🤖"
+                    st.markdown(f"**{role_icon} {message['role'].title()}**")
+                    
+                    # Mesaj içeriği (vurgulanmış veya normal)
+                    if search_query:
+                        highlighted_content = highlight_search_term(message['content'], search_query)
+                        st.markdown(highlighted_content, unsafe_allow_html=True)
+                    else:
+                        st.markdown(message['content'])
+                    
+                    # Mesaj detayları
+                    col1, col2, col3 = st.columns(3)
+                    with col1:
+                        st.caption(f"📅 {message['timestamp'][:10]}")
+                    with col2:
+                        st.caption(f"🕐 {message['timestamp'][11:16]}")
+                    with col3:
+                        st.caption(f"📁 {message['session_name']}")
+                    
+                    # Oturuma git butonu
+                    if st.button(f"📁 Bu Oturuma Git", key=f"goto_session_{i}"):
+                        st.session_state.current_session_id = message['session_id']
+                        load_session_messages(message['session_id'])
+                        st.rerun()
+            
+            # Arama sonuçlarını temizle
+            col1, col2 = st.columns([3, 1])
+            with col1:
+                st.caption("💡 Arama sonuçlarını temizlemek için sağdaki butona tıklayın")
+            with col2:
+                if st.button("❌ Temizle", key="clear_search", use_container_width=True):
+                    if hasattr(st.session_state, 'search_results'):
+                        del st.session_state.search_results
+                    if hasattr(st.session_state, 'search_query'):
+                        del st.session_state.search_query
+                    if hasattr(st.session_state, 'last_search_params'):
+                        del st.session_state.last_search_params
+                    st.rerun()
+        
+        st.markdown("---")
+        
         # Sohbet Oturumları
         st.markdown("## 💬 Sohbet Oturumları")
         
@@ -2631,4 +2978,4 @@ else:
     # Otomatik kaydırma için boşluk
     if st.session_state.get('auto_scroll', False):
         st.markdown("<br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br>", unsafe_allow_html=True)
-        st.session_state.auto_scroll = False 
+        st.session_state.auto_scroll = False

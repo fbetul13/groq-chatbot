@@ -1732,6 +1732,280 @@ def empty_trash():
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
+@app.route('/api/search', methods=['POST'])
+@require_auth
+def search_messages():
+    """Mesajlarda arama yap"""
+    try:
+        user_id = session['user_id']
+        data = request.get_json()
+        
+        print(f"DEBUG: Search request data: {data}")  # Debug için
+        
+        # Arama parametreleri
+        query = data.get('query', '').strip()
+        session_id = data.get('session_id', None)  # Belirli oturumda arama
+        role_filter = data.get('role', None)  # 'user' veya 'assistant'
+        date_from = data.get('date_from', None)  # Başlangıç tarihi
+        date_to = data.get('date_to', None)  # Bitiş tarihi
+        limit = data.get('limit', 50)  # Sonuç limiti
+        offset = data.get('offset', 0)  # Sayfalama
+        
+        print(f"DEBUG: Parsed parameters - query: '{query}', session_id: {session_id}, role: {role_filter}, date_from: {date_from}, date_to: {date_to}")  # Debug için
+        
+        # En az bir arama kriteri gerekli (boş arama yapılamaz)
+        has_criteria = False
+        if query and len(query) > 0:
+            has_criteria = True
+            print(f"DEBUG: Query criteria found: '{query}'")
+        if session_id:
+            has_criteria = True
+            print(f"DEBUG: Session criteria found: {session_id}")
+        if role_filter:
+            has_criteria = True
+            print(f"DEBUG: Role criteria found: {role_filter}")
+        if date_from:
+            has_criteria = True
+            print(f"DEBUG: Date from criteria found: {date_from}")
+        if date_to:
+            has_criteria = True
+            print(f"DEBUG: Date to criteria found: {date_to}")
+            
+        print(f"DEBUG: Has criteria: {has_criteria}")
+        
+        if not has_criteria:
+            return jsonify({'error': 'At least one search criteria is required'}), 400
+        
+        conn = sqlite3.connect('chatbot.db')
+        cursor = conn.cursor()
+        
+        # Temel SQL sorgusu
+        sql = '''
+            SELECT m.id, m.session_id, m.role, m.content, m.timestamp, m.model, m.temperature, m.max_tokens,
+                   cs.session_name
+            FROM messages m
+            JOIN chat_sessions cs ON m.session_id = cs.session_id
+            WHERE cs.user_id = ?
+        '''
+        params = [user_id]
+        
+        # Arama kriterlerini ekle
+        conditions = []
+        
+        if query:
+            conditions.append("(m.content LIKE ? OR cs.session_name LIKE ?)")
+            params.extend([f'%{query}%', f'%{query}%'])
+        
+        if session_id:
+            conditions.append("m.session_id = ?")
+            params.append(session_id)
+        
+        if role_filter:
+            conditions.append("m.role = ?")
+            params.append(role_filter)
+        
+        if date_from:
+            conditions.append("DATE(m.timestamp) >= ?")
+            params.append(date_from)
+        
+        if date_to:
+            conditions.append("DATE(m.timestamp) <= ?")
+            params.append(date_to)
+        
+        if conditions:
+            sql += " AND " + " AND ".join(conditions)
+        
+        # Sıralama ve limit
+        sql += " ORDER BY m.timestamp DESC LIMIT ? OFFSET ?"
+        params.extend([limit, offset])
+        
+        # Debug için SQL sorgusunu yazdır
+        print(f"DEBUG: SQL Query: {sql}")
+        print(f"DEBUG: SQL Params: {params}")
+        
+        # Sorguyu çalıştır
+        cursor.execute(sql, params)
+        results = cursor.fetchall()
+        
+        print(f"DEBUG: Found {len(results)} results")
+        
+        # Toplam sonuç sayısını al (sayfalama için)
+        count_sql = '''
+            SELECT COUNT(*)
+            FROM messages m
+            JOIN chat_sessions cs ON m.session_id = cs.session_id
+            WHERE cs.user_id = ?
+        '''
+        count_params = [user_id]
+        
+        if conditions:
+            count_sql += " AND " + " AND ".join(conditions)
+            # Count için de aynı parametreleri ekle (sırayla)
+            for condition in conditions:
+                if "m.content LIKE ?" in condition or "cs.session_name LIKE ?" in condition:
+                    count_params.extend([f'%{query}%', f'%{query}%'])
+                elif "m.session_id = ?" in condition:
+                    count_params.append(session_id)
+                elif "m.role = ?" in condition:
+                    count_params.append(role_filter)
+                elif "DATE(m.timestamp) >= ?" in condition:
+                    count_params.append(date_from)
+                elif "DATE(m.timestamp) <= ?" in condition:
+                    count_params.append(date_to)
+        
+        print(f"DEBUG: Count SQL: {count_sql}")
+        print(f"DEBUG: Count Params: {count_params}")
+        
+        cursor.execute(count_sql, count_params)
+        total_count = cursor.fetchone()[0]
+        
+        print(f"DEBUG: Total count: {total_count}")
+        
+        conn.close()
+        
+        # Sonuçları formatla
+        messages = []
+        for result in results:
+            messages.append({
+                'id': result[0],
+                'session_id': result[1],
+                'role': result[2],
+                'content': result[3],
+                'timestamp': result[4],
+                'model': result[5],
+                'temperature': result[6],
+                'max_tokens': result[7],
+                'session_name': result[8]
+            })
+        
+        return jsonify({
+            'messages': messages,
+            'total_count': total_count,
+            'limit': limit,
+            'offset': offset,
+            'has_more': (offset + limit) < total_count
+        })
+        
+    except Exception as e:
+        print(f"ERROR in search_messages: {str(e)}")
+        import traceback
+        print(f"ERROR traceback: {traceback.format_exc()}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/search/sessions', methods=['GET'])
+@require_auth
+def search_sessions():
+    """Oturum adlarında arama yap"""
+    try:
+        user_id = session['user_id']
+        query = request.args.get('query', '').strip()
+        
+        if not query:
+            return jsonify({'error': 'Search query is required'}), 400
+        
+        conn = sqlite3.connect('chatbot.db')
+        cursor = conn.cursor()
+        
+        cursor.execute('''
+            SELECT session_id, session_name, created_at, updated_at,
+                   (SELECT COUNT(*) FROM messages WHERE messages.session_id = chat_sessions.session_id) as message_count
+            FROM chat_sessions 
+            WHERE user_id = ? AND session_name LIKE ?
+            ORDER BY updated_at DESC
+        ''', (user_id, f'%{query}%'))
+        
+        sessions = cursor.fetchall()
+        conn.close()
+        
+        session_list = []
+        for session_data in sessions:
+            session_list.append({
+                'session_id': session_data[0],
+                'session_name': session_data[1],
+                'created_at': session_data[2],
+                'updated_at': session_data[3],
+                'message_count': session_data[4]
+            })
+        
+        return jsonify({'sessions': session_list})
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/search/stats', methods=['GET'])
+@require_auth
+def get_search_stats():
+    """Arama istatistiklerini getir"""
+    try:
+        user_id = session['user_id']
+        conn = sqlite3.connect('chatbot.db')
+        cursor = conn.cursor()
+        
+        # Toplam mesaj sayısı
+        cursor.execute('''
+            SELECT COUNT(*) FROM messages m
+            JOIN chat_sessions cs ON m.session_id = cs.session_id
+            WHERE cs.user_id = ?
+        ''', (user_id,))
+        total_messages = cursor.fetchone()[0]
+        
+        # Toplam oturum sayısı
+        cursor.execute('SELECT COUNT(*) FROM chat_sessions WHERE user_id = ?', (user_id,))
+        total_sessions = cursor.fetchone()[0]
+        
+        # Kullanıcı mesajları sayısı
+        cursor.execute('''
+            SELECT COUNT(*) FROM messages m
+            JOIN chat_sessions cs ON m.session_id = cs.session_id
+            WHERE cs.user_id = ? AND m.role = 'user'
+        ''', (user_id,))
+        user_messages = cursor.fetchone()[0]
+        
+        # Bot mesajları sayısı
+        cursor.execute('''
+            SELECT COUNT(*) FROM messages m
+            JOIN chat_sessions cs ON m.session_id = cs.session_id
+            WHERE cs.user_id = ? AND m.role = 'assistant'
+        ''', (user_id,))
+        bot_messages = cursor.fetchone()[0]
+        
+        # En son mesaj tarihi
+        cursor.execute('''
+            SELECT MAX(timestamp) FROM messages m
+            JOIN chat_sessions cs ON m.session_id = cs.session_id
+            WHERE cs.user_id = ?
+        ''', (user_id,))
+        last_message_date = cursor.fetchone()[0]
+        
+        # En aktif gün (en çok mesaj gönderilen gün)
+        cursor.execute('''
+            SELECT DATE(timestamp) as message_date, COUNT(*) as message_count
+            FROM messages m
+            JOIN chat_sessions cs ON m.session_id = cs.session_id
+            WHERE cs.user_id = ?
+            GROUP BY DATE(timestamp)
+            ORDER BY message_count DESC
+            LIMIT 1
+        ''', (user_id,))
+        most_active_day = cursor.fetchone()
+        
+        conn.close()
+        
+        return jsonify({
+            'total_messages': total_messages,
+            'total_sessions': total_sessions,
+            'user_messages': user_messages,
+            'bot_messages': bot_messages,
+            'last_message_date': last_message_date,
+            'most_active_day': {
+                'date': most_active_day[0] if most_active_day else None,
+                'message_count': most_active_day[1] if most_active_day else 0
+            }
+        })
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
 @app.route('/api/research', methods=['POST'])
 @require_auth
 def web_research():
