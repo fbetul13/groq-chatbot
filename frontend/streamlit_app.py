@@ -1510,7 +1510,11 @@ def check_if_needs_research(prompt: str) -> bool:
         'yol', 'tarif', 'nasıl giderim', 'adres', 'konum', 'harita', 'gps',
         'haber', 'güncel', 'son dakika', 'olay', 'gelişme',
         'fiyat', 'kaç para', 'ne kadar', 'ucuz', 'pahalı',
-        'nerede', 'hangi', 'kim', 'ne zaman', 'kaç'
+        'nerede', 'hangi', 'kim', 'ne zaman', 'kaç',
+        'vapur', 'otobüs', 'metro', 'tren', 'uçak', 'feribot',
+        'internet', 'araştır', 'bak', 'söyle', 'bul', 'bulun',
+        'saat', 'zaman', 'ne zaman', 'kaçta', 'kaç saat',
+        'mesafe', 'uzaklık', 'süre', 'dakika', 'saat'
     ]
     
     prompt_lower = prompt.lower()

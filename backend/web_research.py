@@ -29,6 +29,14 @@ class WebResearch:
                 'confidence': 0.9
             }
         
+        # Ulaşım bilgisi tespiti
+        transport_keywords = ['vapur', 'otobüs', 'metro', 'tren', 'uçak', 'feribot', 'saat', 'sefer']
+        if any(keyword in query_lower for keyword in transport_keywords):
+            return {
+                'type': 'transport',
+                'confidence': 0.9
+            }
+        
         # Yol tarifi tespiti
         route_keywords = ['yol', 'tarif', 'nasıl giderim', 'adres', 'konum', 'harita', 'gps']
         if any(keyword in query_lower for keyword in route_keywords):
@@ -245,6 +253,53 @@ class WebResearch:
                 'message': "Haber arama yapılamadı."
             }
     
+    def get_transport_info(self, query: str) -> Dict[str, any]:
+        """Ulaşım bilgisi alır (vapur, otobüs, metro, tren saatleri vb.)"""
+        try:
+            # Google'da ulaşım bilgisi ara
+            search_query = f"{query} saat sefer bilgi"
+            search_url = f"https://www.google.com/search?q={search_query}"
+            
+            response = self.session.get(search_url, timeout=10)
+            soup = BeautifulSoup(response.content, 'html.parser')
+            
+            # Ulaşım bilgilerini çıkar
+            transport_info = {
+                'success': True,
+                'query': query,
+                'source': 'Google',
+                'timestamp': datetime.now().strftime("%H:%M"),
+                'info': []
+            }
+            
+            # Arama sonuçlarından bilgi çıkar
+            result_elements = soup.find_all('div', {'class': 'g'})
+            
+            for element in result_elements[:5]:  # İlk 5 sonucu al
+                title_element = element.find('h3')
+                snippet_element = element.find('div', {'class': 'VwiC3b'})
+                
+                if title_element and snippet_element:
+                    transport_info['info'].append({
+                        'title': title_element.text,
+                        'snippet': snippet_element.text
+                    })
+            
+            # Eğer yeterli bilgi yoksa, genel arama yap
+            if len(transport_info['info']) < 2:
+                general_result = self.search_general(query)
+                if general_result['success']:
+                    transport_info['info'].extend(general_result['results'])
+            
+            return transport_info
+            
+        except Exception as e:
+            return {
+                'success': False,
+                'error': str(e),
+                'message': f"{query} için ulaşım bilgisi alınamadı."
+            }
+    
     def search_general(self, query: str) -> Dict[str, any]:
         """Genel web araması yapar"""
         try:
@@ -289,6 +344,8 @@ class WebResearch:
         
         if intent['type'] == 'weather':
             return self.get_weather(intent.get('city', 'İstanbul'))
+        elif intent['type'] == 'transport':
+            return self.get_transport_info(query)
         elif intent['type'] == 'route':
             # Yol tarifi için origin ve destination çıkar
             locations = self.extract_locations_from_query(query)
