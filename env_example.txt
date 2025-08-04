@@ -2,4 +2,8 @@
 GROQ_API_KEY=your_actual_groq_api_key_here
 
 # Flask secret key (otomatik oluşturulur, değiştirebilirsiniz)
-SECRET_KEY=your_secret_key_here_or_leave_empty_for_auto_generation 
+SECRET_KEY=your_secret_key_here_or_leave_empty_for_auto_generation
+
+# Web araştırma API anahtarları (opsiyonel)
+OPENWEATHER_API_KEY=your_openweather_api_key_here
+GOOGLE_MAPS_API_KEY=your_google_maps_api_key_here 

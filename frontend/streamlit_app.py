@@ -1503,6 +1503,19 @@ def handle_api_error(error_type, error_message, response=None):
     if st.button("🔄 Tekrar Dene", key=f"retry_{int(time.time())}"):
         st.rerun()
 
+def check_if_needs_research(prompt: str) -> bool:
+    """Mesajın web araştırması gerektirip gerektirmediğini kontrol eder"""
+    research_keywords = [
+        'hava', 'hava durumu', 'sıcaklık', 'yağmur', 'güneş', 'rüzgar', 'nem', 'derece',
+        'yol', 'tarif', 'nasıl giderim', 'adres', 'konum', 'harita', 'gps',
+        'haber', 'güncel', 'son dakika', 'olay', 'gelişme',
+        'fiyat', 'kaç para', 'ne kadar', 'ucuz', 'pahalı',
+        'nerede', 'hangi', 'kim', 'ne zaman', 'kaç'
+    ]
+    
+    prompt_lower = prompt.lower()
+    return any(keyword in prompt_lower for keyword in research_keywords)
+
 def show_typing_animation():
     """Yazma animasyonu göster"""
     # Basit yazma animasyonu
@@ -2351,12 +2364,33 @@ else:
             st.markdown(rendered_prompt, unsafe_allow_html=True)
             st.caption(user_message["time"])
         
+        # Web araştırması gerekip gerekmediğini kontrol et
+        needs_research = check_if_needs_research(prompt)
+        
         # Bot yanıtını al
         with st.chat_message("assistant", avatar=st.session_state.bot_avatar):
             with st.spinner("🤔 Düşünüyor..."):
                 try:
+                    # Eğer web araştırması gerekiyorsa, önce araştırma yap
+                    research_data = None
+                    if needs_research:
+                        with st.spinner("🌐 Web'den araştırıyorum..."):
+                            research_response = requests.post(
+                                f"{st.session_state.api_url}/research",
+                                json={"query": prompt},
+                                timeout=30,
+                                cookies=st.session_state.get('cookies', {})
+                            )
+                            if research_response.status_code == 200:
+                                research_data = research_response.json().get('research_result', {})
+                    
+                    # Araştırma verilerini mesaja ekle
+                    enhanced_prompt = prompt
+                    if research_data and research_data.get('success'):
+                        enhanced_prompt = f"{prompt}\n\n[Web Araştırma Sonuçları:]\n{json.dumps(research_data, ensure_ascii=False, indent=2)}"
+                    
                     request_data = {
-                        "message": prompt,
+                        "message": enhanced_prompt,
                         "model": model,
                         "temperature": temperature,
                         "max_tokens": max_tokens,

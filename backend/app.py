@@ -19,6 +19,7 @@ from reportlab.lib.units import inch
 from reportlab.lib.colors import black, blue, gray
 from reportlab.pdfbase import pdfmetrics
 from reportlab.pdfbase.ttfonts import TTFont
+from web_research import WebResearch
 
 # .env dosyasını yükle
 load_dotenv()
@@ -38,6 +39,9 @@ if not GROQ_API_KEY:
 
 # Groq client'ını başlat
 client = Groq(api_key=GROQ_API_KEY)
+
+# Web araştırma modülünü başlat
+web_research = WebResearch()
 
 # Veritabanı başlatma
 def init_db():
@@ -1534,6 +1538,34 @@ def update_message(session_id, message_id):
         
     except Exception as e:
         return jsonify({'error': str(e)}), 500
+
+@app.route('/api/research', methods=['POST'])
+@require_auth
+def web_research():
+    """Web araştırma endpoint'i"""
+    try:
+        data = request.get_json()
+        query = data.get('query', '')
+        
+        if not query:
+            return jsonify({'error': 'Query is required'}), 400
+        
+        # Web araştırması yap
+        research_result = web_research.research_query(query)
+        
+        return jsonify({
+            'success': True,
+            'research_result': research_result,
+            'query': query,
+            'timestamp': datetime.now().isoformat()
+        })
+        
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e),
+            'message': 'Web araştırması yapılamadı.'
+        }), 500
 
 @app.route('/api/health', methods=['GET'])
 def health_check():
