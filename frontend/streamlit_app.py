@@ -1073,6 +1073,9 @@ def edit_message(message_index, new_content):
                     # Bu mesajdan sonraki tüm mesajları sil (chatbot yanıtları)
                     st.session_state.messages = st.session_state.messages[:message_index + 1]
                     
+                    # Düzenlenen mesajı otomatik olarak gönder
+                    st.session_state.auto_send_message = new_content
+                    
                     st.success("✅ Mesaj düzenlendi! Chatbot yanıtı yeniden oluşturulacak.")
                     return True
                 else:
@@ -2299,10 +2302,8 @@ else:
         
         col1, col2 = st.columns([1, 1])
         with col1:
-            if st.button("🚀 Gönder", key="send_edit"):
+            if st.button("✅ Kaydet ve Gönder", key="save_edit"):
                 if edit_message(st.session_state.editing_message_index, edited_content):
-                    # Düzenlenen mesajı otomatik olarak gönder
-                    st.session_state.auto_send_message = edited_content
                     st.session_state.editing_message_index = None
                     st.session_state.editing_message_content = None
                     st.rerun()
