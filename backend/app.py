@@ -486,7 +486,7 @@ def chat():
             
             # Önce kesin eşleşmeleri kontrol et
             exact_matches = {
-                'merhaba': 'tr', 'selam': 'tr', 'nasılsın': 'tr', 'iyiyim': 'tr', 'iyi': 'tr', 'güzel': 'tr', 'teşekkür': 'tr', 'ediyorum': 'tr', 'ediyor': 'tr', 'var': 'tr', 'yok': 'tr', 'evet': 'tr', 'hayır': 'tr', 'tamam': 'tr', 'olur': 'tr', 'güzel': 'tr', 'kötü': 'tr', 'fena': 'tr', 'değil': 'tr', 'çok': 'tr', 'az': 'tr', 'biraz': 'tr', 'şey': 'tr', 'bu': 'tr', 'şu': 'tr', 'o': 'tr', 'ben': 'tr', 'sen': 'tr', 'biz': 'tr', 'siz': 'tr', 'onlar': 'tr',
+                'merhaba': 'tr', 'selam': 'tr', 'nasılsın': 'tr', 'naber': 'tr', 'iyiyim': 'tr', 'iyi': 'tr', 'güzel': 'tr', 'teşekkür': 'tr', 'ediyorum': 'tr', 'ediyor': 'tr', 'var': 'tr', 'yok': 'tr', 'evet': 'tr', 'hayır': 'tr', 'tamam': 'tr', 'olur': 'tr', 'güzel': 'tr', 'kötü': 'tr', 'fena': 'tr', 'değil': 'tr', 'çok': 'tr', 'az': 'tr', 'biraz': 'tr', 'şey': 'tr', 'bu': 'tr', 'şu': 'tr', 'o': 'tr', 'ben': 'tr', 'sen': 'tr', 'biz': 'tr', 'siz': 'tr', 'onlar': 'tr', 'anlamadım': 'tr', 'diyorsun': 'tr', 'ne': 'tr', 'diyor': 'tr',
                 'hallo': 'de', 'guten': 'de', 'tag': 'de', 'danke': 'de', 'bitte': 'de', 'kannst': 'de', 'du': 'de', 'mir': 'de', 'die': 'de', 'aber': 'de', 'original': 'de',
                 'hola': 'es', 'buenos': 'es', 'días': 'es', 'gracias': 'es', 'por': 'es',
                 'hello': 'en', 'hi': 'en', 'how': 'en', 'are': 'en', 'you': 'en',

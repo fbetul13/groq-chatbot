@@ -2263,7 +2263,12 @@ else:
                 if message["role"] == "user":
                     # Sadece en son kullanıcı mesajı için düzenleme butonu
                     user_messages = [j for j, msg in enumerate(st.session_state.messages) if msg["role"] == "user"]
-                    if user_messages and i == user_messages[-1]:  # Bu en son kullanıcı mesajı mı?
+                    is_last_user_message = user_messages and i == user_messages[-1]
+                    
+                    # Debug için mesaj indeksini göster
+                    st.caption(f"Mesaj {i} - Son kullanıcı mesajı: {user_messages[-1] if user_messages else 'Yok'}")
+                    
+                    if is_last_user_message:  # Bu en son kullanıcı mesajı mı?
                         st.button("✏️ Düzenle", key=f"edit_{i}", help="Bu mesajı düzenle", on_click=lambda idx=i, content=message["content"]: set_edit_state(idx, content))
                 elif message["role"] == "assistant":
                     # Bot mesajları için butonlar
