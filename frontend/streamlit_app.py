@@ -853,7 +853,10 @@ def load_session_messages(session_id):
                 st.session_state.messages.append({
                     "role": msg['role'],
                     "content": msg['content'],
-                    "time": datetime.fromisoformat(msg['timestamp'].replace('Z', '+00:00')).strftime("%H:%M")
+                    "time": datetime.fromisoformat(msg['timestamp'].replace('Z', '+00:00')).strftime("%H:%M"),
+                    "message_id": msg.get('id'),  # Backend'den gelen mesaj ID'si
+                    "edited": msg.get('edited', False),
+                    "edit_time": msg.get('edit_time')
                 })
         else:
             st.error("Mesajlar yüklenemedi")
@@ -1037,15 +1040,46 @@ def clear_session_messages(session_id):
         st.error(f"Temizleme hatası: {str(e)}")
 
 def edit_message(message_index, new_content):
-    """Mesajı düzenle"""
+    """Mesajı düzenle ve chatbot yanıtını yeniden oluştur"""
     try:
         if 0 <= message_index < len(st.session_state.messages):
-            # Mesajı güncelle
-            st.session_state.messages[message_index]["content"] = new_content
-            st.session_state.messages[message_index]["edited"] = True
-            st.session_state.messages[message_index]["edit_time"] = datetime.now().strftime("%H:%M")
-            st.success("✅ Mesaj düzenlendi!")
-            return True
+            message = st.session_state.messages[message_index]
+            
+            # Sadece kullanıcı mesajları düzenlenebilir
+            if message["role"] != "user":
+                st.error("❌ Sadece kullanıcı mesajları düzenlenebilir")
+                return False
+            
+            # Backend'e mesaj güncelleme isteği gönder
+            if st.session_state.current_session_id and message.get("message_id"):
+                response = requests.put(
+                    f"{st.session_state.api_url}/sessions/{st.session_state.current_session_id}/messages/{message['message_id']}/update",
+                    json={"content": new_content},
+                    timeout=10,
+                    cookies=st.session_state.get('cookies', {})
+                )
+                
+                if response.status_code == 200:
+                    # Mesajı güncelle
+                    st.session_state.messages[message_index]["content"] = new_content
+                    st.session_state.messages[message_index]["edited"] = True
+                    st.session_state.messages[message_index]["edit_time"] = datetime.now().strftime("%H:%M")
+                    
+                    # Bu mesajdan sonraki tüm mesajları sil (chatbot yanıtları)
+                    st.session_state.messages = st.session_state.messages[:message_index + 1]
+                    
+                    st.success("✅ Mesaj düzenlendi! Chatbot yanıtı yeniden oluşturulacak.")
+                    return True
+                else:
+                    st.error(f"❌ Backend hatası: {response.status_code}")
+                    return False
+            else:
+                # Session ID yoksa sadece frontend'de güncelle
+                st.session_state.messages[message_index]["content"] = new_content
+                st.session_state.messages[message_index]["edited"] = True
+                st.session_state.messages[message_index]["edit_time"] = datetime.now().strftime("%H:%M")
+                st.success("✅ Mesaj düzenlendi!")
+                return True
         else:
             st.error("❌ Geçersiz mesaj indeksi")
             return False

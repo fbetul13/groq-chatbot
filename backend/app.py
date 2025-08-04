@@ -1066,7 +1066,7 @@ def get_session_messages(session_id):
             return jsonify({'error': 'Access denied to this session'}), 403
         
         cursor.execute('''
-            SELECT role, content, timestamp, model, temperature, max_tokens
+            SELECT id, role, content, timestamp, model, temperature, max_tokens
             FROM messages 
             WHERE session_id = ? 
             ORDER BY timestamp ASC
@@ -1077,12 +1077,13 @@ def get_session_messages(session_id):
         message_list = []
         for msg in messages:
             message_list.append({
-                'role': msg[0],
-                'content': msg[1],
-                'timestamp': msg[2],
-                'model': msg[3],
-                'temperature': msg[4],
-                'max_tokens': msg[5]
+                'id': msg[0],
+                'role': msg[1],
+                'content': msg[2],
+                'timestamp': msg[3],
+                'model': msg[4],
+                'temperature': msg[5],
+                'max_tokens': msg[6]
             })
         
         return jsonify({'messages': message_list})
@@ -1465,6 +1466,71 @@ def clear_session_messages(session_id):
         conn.close()
         
         return jsonify({'message': 'Session messages cleared successfully'})
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/sessions/<session_id>/messages/<int:message_id>/update', methods=['PUT'])
+@require_auth
+def update_message(session_id, message_id):
+    """Belirli bir mesajı güncelle ve chatbot yanıtını yeniden oluştur"""
+    try:
+        user_id = session['user_id']
+        data = request.get_json()
+        new_content = data.get('content', '')
+        
+        if not new_content:
+            return jsonify({'error': 'Content is required'}), 400
+        
+        conn = sqlite3.connect('chatbot.db')
+        cursor = conn.cursor()
+        
+        # Session'ın bu kullanıcıya ait olduğunu kontrol et
+        cursor.execute(
+            'SELECT user_id FROM chat_sessions WHERE session_id = ?',
+            (session_id,)
+        )
+        session_user = cursor.fetchone()
+        
+        if not session_user or session_user[0] != user_id:
+            conn.close()
+            return jsonify({'error': 'Access denied to this session'}), 403
+        
+        # Mesajın var olduğunu ve kullanıcıya ait olduğunu kontrol et
+        cursor.execute(
+            'SELECT role, content FROM messages WHERE id = ? AND session_id = ?',
+            (message_id, session_id)
+        )
+        message = cursor.fetchone()
+        
+        if not message:
+            conn.close()
+            return jsonify({'error': 'Message not found'}), 404
+        
+        if message[0] != 'user':
+            conn.close()
+            return jsonify({'error': 'Only user messages can be updated'}), 400
+        
+        # Mesajı güncelle
+        cursor.execute(
+            'UPDATE messages SET content = ? WHERE id = ?',
+            (new_content, message_id)
+        )
+        
+        # Bu mesajdan sonraki tüm mesajları sil (chatbot yanıtları)
+        cursor.execute(
+            'DELETE FROM messages WHERE session_id = ? AND id > ?',
+            (session_id, message_id)
+        )
+        
+        conn.commit()
+        conn.close()
+        
+        return jsonify({
+            'message': 'Message updated successfully',
+            'message_id': message_id,
+            'new_content': new_content
+        })
         
     except Exception as e:
         return jsonify({'error': str(e)}), 500
