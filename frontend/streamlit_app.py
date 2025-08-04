@@ -1073,8 +1073,9 @@ def edit_message(message_index, new_content):
                     # Bu mesajdan sonraki tüm mesajları sil (chatbot yanıtları)
                     st.session_state.messages = st.session_state.messages[:message_index + 1]
                     
-                    # Düzenlenen mesajı otomatik olarak gönder
+                    # Düzenlenen mesajı otomatik olarak gönder ve chatbot yanıtı al
                     st.session_state.auto_send_message = new_content
+                    st.session_state.auto_process_edit = True  # Düzenleme sonrası otomatik işlem
                     
                     st.success("✅ Mesaj düzenlendi! Chatbot yanıtı yeniden oluşturulacak.")
                     return True
@@ -2323,6 +2324,9 @@ else:
     if hasattr(st.session_state, 'auto_send_message') and st.session_state.auto_send_message:
         prompt = st.session_state.auto_send_message
         del st.session_state.auto_send_message  # Mesajı temizle
+        # Düzenleme sonrası otomatik işlem için flag'i temizle
+        if hasattr(st.session_state, 'auto_process_edit'):
+            del st.session_state.auto_process_edit
     else:
         prompt = st.chat_input("Mesajınızı yazın...")
     
