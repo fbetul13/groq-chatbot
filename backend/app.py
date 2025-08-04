@@ -71,6 +71,19 @@ def init_db():
         )
     ''')
     
+    # Silinen sohbet oturumları tablosu (geri alma için)
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS deleted_chat_sessions (
+            session_id TEXT PRIMARY KEY,
+            user_id INTEGER,
+            session_name TEXT,
+            created_at TIMESTAMP,
+            updated_at TIMESTAMP,
+            deleted_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (user_id) REFERENCES users (id)
+        )
+    ''')
+    
     # Mesajlar tablosu
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS messages (
@@ -83,6 +96,21 @@ def init_db():
             temperature REAL,
             max_tokens INTEGER,
             FOREIGN KEY (session_id) REFERENCES chat_sessions (session_id)
+        )
+    ''')
+    
+    # Silinen mesajlar tablosu (geri alma için)
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS deleted_messages (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            session_id TEXT,
+            role TEXT,
+            content TEXT,
+            timestamp TIMESTAMP,
+            model TEXT,
+            temperature REAL,
+            max_tokens INTEGER,
+            deleted_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
     ''')
     
@@ -1098,7 +1126,7 @@ def get_session_messages(session_id):
 @app.route('/api/sessions/<session_id>', methods=['DELETE'])
 @require_auth
 def delete_session(session_id):
-    """Sohbet oturumunu sil (kullanıcı kontrolü ile)"""
+    """Sohbet oturumunu sil (geri alma için silinen tablosuna taşı)"""
     try:
         user_id = session['user_id']
         conn = sqlite3.connect('chatbot.db')
@@ -1106,24 +1134,42 @@ def delete_session(session_id):
         
         # Session'ın bu kullanıcıya ait olduğunu kontrol et
         cursor.execute(
-            'SELECT user_id FROM chat_sessions WHERE session_id = ?',
+            'SELECT user_id, session_name, created_at, updated_at FROM chat_sessions WHERE session_id = ?',
             (session_id,)
         )
-        session_user = cursor.fetchone()
+        session_data = cursor.fetchone()
         
-        if not session_user or session_user[0] != user_id:
+        if not session_data or session_data[0] != user_id:
             conn.close()
             return jsonify({'error': 'Access denied to this session'}), 403
         
-        # Önce mesajları sil
+        session_name = session_data[1]
+        created_at = session_data[2]
+        updated_at = session_data[3]
+        
+        # Mesajları silinen mesajlar tablosuna taşı
+        cursor.execute('''
+            INSERT INTO deleted_messages (session_id, role, content, timestamp, model, temperature, max_tokens)
+            SELECT session_id, role, content, timestamp, model, temperature, max_tokens
+            FROM messages WHERE session_id = ?
+        ''', (session_id,))
+        
+        # Orijinal mesajları sil
         cursor.execute('DELETE FROM messages WHERE session_id = ?', (session_id,))
-        # Sonra oturumu sil
+        
+        # Session'ı silinen oturumlar tablosuna taşı
+        cursor.execute('''
+            INSERT INTO deleted_chat_sessions (session_id, user_id, session_name, created_at, updated_at)
+            VALUES (?, ?, ?, ?, ?)
+        ''', (session_id, user_id, session_name, created_at, updated_at))
+        
+        # Orijinal session'ı sil
         cursor.execute('DELETE FROM chat_sessions WHERE session_id = ?', (session_id,))
         
         conn.commit()
         conn.close()
         
-        return jsonify({'message': 'Session deleted successfully'})
+        return jsonify({'message': 'Session moved to trash successfully'})
         
     except Exception as e:
         return jsonify({'error': str(e)}), 500
@@ -1535,6 +1581,153 @@ def update_message(session_id, message_id):
             'message_id': message_id,
             'new_content': new_content
         })
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/deleted-sessions', methods=['GET'])
+@require_auth
+def get_deleted_sessions():
+    """Kullanıcının silinen sohbet oturumlarını getir"""
+    try:
+        user_id = session['user_id']
+        conn = sqlite3.connect('chatbot.db')
+        cursor = conn.cursor()
+        cursor.execute('''
+            SELECT session_id, session_name, created_at, updated_at, deleted_at,
+                   (SELECT COUNT(*) FROM deleted_messages WHERE deleted_messages.session_id = deleted_chat_sessions.session_id) as message_count
+            FROM deleted_chat_sessions 
+            WHERE user_id = ?
+            ORDER BY deleted_at DESC
+        ''', (user_id,))
+        sessions = cursor.fetchall()
+        conn.close()
+        
+        session_list = []
+        for session_data in sessions:
+            session_list.append({
+                'session_id': session_data[0],
+                'session_name': session_data[1],
+                'created_at': session_data[2],
+                'updated_at': session_data[3],
+                'deleted_at': session_data[4],
+                'message_count': session_data[5]
+            })
+        
+        return jsonify({'deleted_sessions': session_list})
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/deleted-sessions/<session_id>/restore', methods=['POST'])
+@require_auth
+def restore_deleted_session(session_id):
+    """Silinen sohbet oturumunu geri yükle"""
+    try:
+        user_id = session['user_id']
+        conn = sqlite3.connect('chatbot.db')
+        cursor = conn.cursor()
+        
+        # Silinen session'ın bu kullanıcıya ait olduğunu kontrol et
+        cursor.execute(
+            'SELECT user_id, session_name, created_at, updated_at FROM deleted_chat_sessions WHERE session_id = ?',
+            (session_id,)
+        )
+        session_data = cursor.fetchone()
+        
+        if not session_data or session_data[0] != user_id:
+            conn.close()
+            return jsonify({'error': 'Access denied to this session'}), 403
+        
+        session_name = session_data[1]
+        created_at = session_data[2]
+        updated_at = session_data[3]
+        
+        # Session'ı aktif oturumlar tablosuna geri taşı
+        cursor.execute('''
+            INSERT INTO chat_sessions (session_id, user_id, session_name, created_at, updated_at)
+            VALUES (?, ?, ?, ?, ?)
+        ''', (session_id, user_id, session_name, created_at, updated_at))
+        
+        # Mesajları aktif mesajlar tablosuna geri taşı
+        cursor.execute('''
+            INSERT INTO messages (session_id, role, content, timestamp, model, temperature, max_tokens)
+            SELECT session_id, role, content, timestamp, model, temperature, max_tokens
+            FROM deleted_messages WHERE session_id = ?
+        ''', (session_id,))
+        
+        # Silinen mesajları temizle
+        cursor.execute('DELETE FROM deleted_messages WHERE session_id = ?', (session_id,))
+        
+        # Silinen session'ı temizle
+        cursor.execute('DELETE FROM deleted_chat_sessions WHERE session_id = ?', (session_id,))
+        
+        conn.commit()
+        conn.close()
+        
+        return jsonify({'message': 'Session restored successfully'})
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/deleted-sessions/<session_id>/permanent-delete', methods=['DELETE'])
+@require_auth
+def permanent_delete_session(session_id):
+    """Silinen sohbet oturumunu kalıcı olarak sil"""
+    try:
+        user_id = session['user_id']
+        conn = sqlite3.connect('chatbot.db')
+        cursor = conn.cursor()
+        
+        # Silinen session'ın bu kullanıcıya ait olduğunu kontrol et
+        cursor.execute(
+            'SELECT user_id FROM deleted_chat_sessions WHERE session_id = ?',
+            (session_id,)
+        )
+        session_user = cursor.fetchone()
+        
+        if not session_user or session_user[0] != user_id:
+            conn.close()
+            return jsonify({'error': 'Access denied to this session'}), 403
+        
+        # Silinen mesajları kalıcı olarak sil
+        cursor.execute('DELETE FROM deleted_messages WHERE session_id = ?', (session_id,))
+        
+        # Silinen session'ı kalıcı olarak sil
+        cursor.execute('DELETE FROM deleted_chat_sessions WHERE session_id = ?', (session_id,))
+        
+        conn.commit()
+        conn.close()
+        
+        return jsonify({'message': 'Session permanently deleted'})
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/deleted-sessions/empty-trash', methods=['DELETE'])
+@require_auth
+def empty_trash():
+    """Tüm silinen oturumları kalıcı olarak sil"""
+    try:
+        user_id = session['user_id']
+        conn = sqlite3.connect('chatbot.db')
+        cursor = conn.cursor()
+        
+        # Kullanıcının tüm silinen mesajlarını sil
+        cursor.execute('''
+            DELETE FROM deleted_messages 
+            WHERE session_id IN (
+                SELECT session_id FROM deleted_chat_sessions WHERE user_id = ?
+            )
+        ''', (user_id,))
+        
+        # Kullanıcının tüm silinen oturumlarını sil
+        cursor.execute('DELETE FROM deleted_chat_sessions WHERE user_id = ?', (user_id,))
+        
+        conn.commit()
+        conn.close()
+        
+        return jsonify({'message': 'Trash emptied successfully'})
         
     except Exception as e:
         return jsonify({'error': str(e)}), 500

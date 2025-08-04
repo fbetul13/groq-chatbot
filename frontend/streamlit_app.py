@@ -705,6 +705,9 @@ if "current_session_id" not in st.session_state:
 if "sessions" not in st.session_state:
     st.session_state.sessions = []
 
+if "deleted_sessions" not in st.session_state:
+    st.session_state.deleted_sessions = []
+
 if "user_id" not in st.session_state:
     st.session_state.user_id = None
 
@@ -819,6 +822,7 @@ def logout_user():
             st.session_state.messages = []
             st.session_state.current_session_id = None
             st.session_state.sessions = []
+            st.session_state.deleted_sessions = []
             st.session_state.cookies = {}
             st.success("Çıkış başarılı!")
             st.rerun()
@@ -1038,6 +1042,58 @@ def clear_session_messages(session_id):
             st.error("Temizleme hatası")
     except Exception as e:
         st.error(f"Temizleme hatası: {str(e)}")
+
+def load_deleted_sessions():
+    """Kullanıcının silinen sohbet oturumlarını yükle"""
+    try:
+        response = requests.get(f"{st.session_state.api_url}/deleted-sessions", timeout=5, cookies=st.session_state.get('cookies', {}))
+        if response.status_code == 200:
+            data = response.json()
+            st.session_state.deleted_sessions = data.get('deleted_sessions', [])
+        else:
+            st.error("Silinen oturumlar yüklenemedi")
+    except Exception as e:
+        st.error(f"Silinen oturum yükleme hatası: {str(e)}")
+
+def restore_deleted_session(session_id):
+    """Silinen sohbet oturumunu geri yükle"""
+    try:
+        response = requests.post(f"{st.session_state.api_url}/deleted-sessions/{session_id}/restore", timeout=5, cookies=st.session_state.get('cookies', {}))
+        if response.status_code == 200:
+            st.success("Oturum geri yüklendi!")
+            load_deleted_sessions()
+            load_sessions()
+            st.rerun()
+        else:
+            st.error("Geri yükleme hatası")
+    except Exception as e:
+        st.error(f"Geri yükleme hatası: {str(e)}")
+
+def permanent_delete_session(session_id):
+    """Silinen sohbet oturumunu kalıcı olarak sil"""
+    try:
+        response = requests.delete(f"{st.session_state.api_url}/deleted-sessions/{session_id}/permanent-delete", timeout=5, cookies=st.session_state.get('cookies', {}))
+        if response.status_code == 200:
+            st.success("Oturum kalıcı olarak silindi!")
+            load_deleted_sessions()
+            st.rerun()
+        else:
+            st.error("Kalıcı silme hatası")
+    except Exception as e:
+        st.error(f"Kalıcı silme hatası: {str(e)}")
+
+def empty_trash():
+    """Tüm silinen oturumları kalıcı olarak sil"""
+    try:
+        response = requests.delete(f"{st.session_state.api_url}/deleted-sessions/empty-trash", timeout=5, cookies=st.session_state.get('cookies', {}))
+        if response.status_code == 200:
+            st.success("Çöp kutusu temizlendi!")
+            load_deleted_sessions()
+            st.rerun()
+        else:
+            st.error("Çöp kutusu temizleme hatası")
+    except Exception as e:
+        st.error(f"Çöp kutusu temizleme hatası: {str(e)}")
 
 def set_edit_state(message_index, content):
     """Düzenleme durumunu ayarla"""
@@ -2179,6 +2235,53 @@ else:
                     )
                     if new_name != session_name:
                         rename_session(session_id, new_name)
+        
+        # Silinen Oturumlar (Çöp Kutusu)
+        st.markdown("---")
+        st.markdown("## 🗑️ Çöp Kutusu")
+        
+        # Silinen oturumları yenile butonu
+        if st.button("🔄 Çöp Kutusunu Yenile", use_container_width=True):
+            load_deleted_sessions()
+        
+        # Silinen oturumları yükle
+        if not hasattr(st.session_state, 'deleted_sessions') or not st.session_state.deleted_sessions:
+            load_deleted_sessions()
+        
+        # Çöp kutusunu temizle butonu
+        if st.session_state.deleted_sessions:
+            if st.button("🗑️ Çöp Kutusunu Temizle", use_container_width=True, help="Tüm silinen oturumları kalıcı olarak sil"):
+                empty_trash()
+        
+        # Silinen oturumları listele
+        if st.session_state.deleted_sessions:
+            st.markdown("### Silinen Oturumlar:")
+            
+            for session in st.session_state.deleted_sessions:
+                session_id = session['session_id']
+                session_name = session['session_name']
+                message_count = session['message_count']
+                deleted_at = session['deleted_at']
+                
+                # Oturum bilgilerini göster
+                col1, col2, col3 = st.columns([2, 1, 1])
+                
+                with col1:
+                    st.markdown(f"**📁 {session_name}**")
+                
+                with col2:
+                    if st.button("🔄", key=f"restore_{session_id}", help="Oturumu geri yükle", use_container_width=True):
+                        restore_deleted_session(session_id)
+                
+                with col3:
+                    if st.button("🗑️", key=f"permanent_delete_{session_id}", help="Kalıcı olarak sil", use_container_width=True):
+                        permanent_delete_session(session_id)
+                
+                # Oturum detayları
+                st.caption(f"💬 {message_count} mesaj • Silindi: {deleted_at[:10]}")
+        
+        else:
+            st.info("🗑️ Çöp kutusu boş")
         
         st.markdown("---")
         
