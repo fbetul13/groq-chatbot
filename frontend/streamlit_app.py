@@ -2255,18 +2255,18 @@ else:
                 else:
                     st.caption(message["time"])
                 
-                # Kullanıcı mesajları için düzenleme butonu - direkt göster
+                # Her mesaj için kendi butonları
                 if message["role"] == "user":
+                    # Kullanıcı mesajları için düzenleme butonu
                     st.button("✏️ Düzenle", key=f"edit_{i}", help="Bu mesajı düzenle", on_click=lambda idx=i, content=message["content"]: set_edit_state(idx, content))
-                
-                # Bot mesajları için butonlar
-                if message["role"] == "assistant":
+                elif message["role"] == "assistant":
+                    # Bot mesajları için butonlar
                     col1, col2, col3 = st.columns([1, 1, 6])
                     
                     with col1:
-                        # Yeniden sor butonu (küçük)
-                        if st.button("🔄", key=f"resend_{i}", help="Bu soruyu tekrar sor", use_container_width=True):
-                            # Aynı mesajı tekrar gönder
+                        # Bu bot mesajını tekrar oluştur butonu
+                        if st.button("🔄", key=f"regenerate_{i}", help="Bu yanıtı tekrar oluştur", use_container_width=True):
+                            # Bu bot mesajını tekrar oluştur
                             if i > 0 and st.session_state.messages[i-1]["role"] == "user":
                                 original_message = st.session_state.messages[i-1]["content"]
                                 # Mesajı doğrudan gönder, rerun kullanma
