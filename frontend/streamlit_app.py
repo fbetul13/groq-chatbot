@@ -711,6 +711,9 @@ if "user_id" not in st.session_state:
 if "username" not in st.session_state:
     st.session_state.username = None
 
+if "cookies" not in st.session_state:
+    st.session_state.cookies = {}
+
 if "auth_mode" not in st.session_state:
     st.session_state.auth_mode = "login"  # "login" veya "register"
 
@@ -771,8 +774,7 @@ def login_user(username, password):
             st.session_state.user_id = data['user_id']
             st.session_state.username = data['username']
             # Cookie'leri kaydet
-            if 'Set-Cookie' in response.headers:
-                st.session_state.cookies = response.cookies.get_dict()
+            st.session_state.cookies = response.cookies.get_dict()
             st.success("Giriş başarılı!")
             return True
         else:
@@ -796,8 +798,7 @@ def register_user(username, password):
             st.session_state.user_id = data['user_id']
             st.session_state.username = data['username']
             # Cookie'leri kaydet
-            if 'Set-Cookie' in response.headers:
-                st.session_state.cookies = response.cookies.get_dict()
+            st.session_state.cookies = response.cookies.get_dict()
             st.success("Kayıt başarılı!")
             return True
         else:
