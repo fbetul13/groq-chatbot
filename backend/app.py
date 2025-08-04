@@ -25,7 +25,11 @@ load_dotenv()
 
 app = Flask(__name__)
 app.secret_key = os.getenv('SECRET_KEY', secrets.token_hex(16))
-CORS(app, supports_credentials=True)  # Frontend'den gelen isteklere izin ver
+# Render'da CORS ayarlarını genişlet
+CORS(app, 
+     supports_credentials=True,
+     origins=['http://localhost:8501', 'https://chatbot-frontend-u380.onrender.com'],
+     methods=['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'])
 
 # Groq API anahtarını al
 GROQ_API_KEY = os.getenv('GROQ_API_KEY')
@@ -1511,4 +1515,6 @@ def internal_error(error):
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5002))
-    app.run(debug=True, host='0.0.0.0', port=port) 
+    # Render'da debug modunu kapat
+    debug_mode = os.environ.get('FLASK_ENV') == 'development'
+    app.run(debug=debug_mode, host='0.0.0.0', port=port) 

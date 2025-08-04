@@ -74,6 +74,35 @@ streamlit run streamlit_app.py
 
 Streamlit uygulaması `http://localhost:8501` adresinde açılacaktır.
 
+## 🚀 Render Deployment
+
+### Backend Deployment (Render)
+
+1. **Yeni Web Service oluşturun**
+2. **GitHub repository'nizi bağlayın**
+3. **Build Command**: `pip install -r requirements.txt`
+4. **Start Command**: `python backend/app.py`
+5. **Environment Variables**:
+   - `GROQ_API_KEY`: Groq API anahtarınız
+   - `SECRET_KEY`: Güvenli bir secret key (opsiyonel)
+   - `PORT`: 10000 (Render'ın otomatik ayarladığı port)
+
+### Frontend Deployment (Render)
+
+1. **Yeni Web Service oluşturun**
+2. **GitHub repository'nizi bağlayın**
+3. **Build Command**: `pip install -r requirements.txt`
+4. **Start Command**: `streamlit run frontend/streamlit_app.py --server.port $PORT --server.address 0.0.0.0`
+5. **Environment Variables**:
+   - `BACKEND_API_URL`: Backend servisinizin URL'si (örn: `https://your-backend-service.onrender.com/api`)
+   - `GROQ_API_KEY`: Groq API anahtarınız
+
+### Önemli Notlar
+
+- Backend ve Frontend'i ayrı servisler olarak deploy edin
+- Backend URL'sini frontend environment variable'ında doğru ayarlayın
+- CORS ayarları backend'de otomatik olarak yapılandırılmıştır
+
 ## 🎯 Kullanım
 
 1. Streamlit uygulamasını başlatın: `streamlit run frontend/streamlit_app.py`
