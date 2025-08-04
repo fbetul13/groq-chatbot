@@ -1036,6 +1036,23 @@ def clear_session_messages(session_id):
     except Exception as e:
         st.error(f"Temizleme hatası: {str(e)}")
 
+def edit_message(message_index, new_content):
+    """Mesajı düzenle"""
+    try:
+        if 0 <= message_index < len(st.session_state.messages):
+            # Mesajı güncelle
+            st.session_state.messages[message_index]["content"] = new_content
+            st.session_state.messages[message_index]["edited"] = True
+            st.session_state.messages[message_index]["edit_time"] = datetime.now().strftime("%H:%M")
+            st.success("✅ Mesaj düzenlendi!")
+            return True
+        else:
+            st.error("❌ Geçersiz mesaj indeksi")
+            return False
+    except Exception as e:
+        st.error(f"❌ Düzenleme hatası: {str(e)}")
+        return False
+
 def process_markdown_and_emoji(text):
     """Markdown ve emoji işleme"""
     if not text:
@@ -2192,7 +2209,20 @@ else:
                 # Markdown ve emoji desteği ile mesajı render et
                 rendered_content = render_message_content(message["content"])
                 st.markdown(rendered_content, unsafe_allow_html=True)
-                st.caption(message["time"])
+                
+                # Düzenleme durumunu göster
+                if message.get("edited", False):
+                    st.caption(f"✏️ {message['time']} (düzenlendi: {message.get('edit_time', '')})")
+                else:
+                    st.caption(message["time"])
+                
+                # Kullanıcı mesajları için düzenleme butonu
+                if message["role"] == "user":
+                    # Düzenleme butonu
+                    if st.button("✏️ Düzenle", key=f"edit_{i}", help="Bu mesajı düzenle"):
+                        st.session_state.editing_message_index = i
+                        st.session_state.editing_message_content = message["content"]
+                        st.rerun()
                 
                 # Sadece son bot mesajı için butonlar göster
                 bot_messages = [j for j, msg in enumerate(st.session_state.messages) if msg["role"] == "assistant"]
@@ -2223,6 +2253,32 @@ else:
                         # Boş alan
                         st.markdown("")
 
+    # Mesaj düzenleme formu
+    if hasattr(st.session_state, 'editing_message_index') and st.session_state.editing_message_index is not None:
+        st.markdown("### ✏️ Mesaj Düzenle")
+        edited_content = st.text_area(
+            "Mesajı düzenle:",
+            value=st.session_state.editing_message_content,
+            key="edit_text_area",
+            height=100
+        )
+        
+        col1, col2 = st.columns([1, 1])
+        with col1:
+            if st.button("✅ Kaydet", key="save_edit"):
+                if edit_message(st.session_state.editing_message_index, edited_content):
+                    st.session_state.editing_message_index = None
+                    st.session_state.editing_message_content = None
+                    st.rerun()
+        
+        with col2:
+            if st.button("❌ İptal", key="cancel_edit"):
+                st.session_state.editing_message_index = None
+                st.session_state.editing_message_content = None
+                st.rerun()
+        
+        st.markdown("---")
+    
     # Kullanıcı girişi
     # Otomatik gönderilen mesaj varsa onu kullan
     if hasattr(st.session_state, 'auto_send_message') and st.session_state.auto_send_message:
