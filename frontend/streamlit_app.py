@@ -2449,6 +2449,9 @@ else:
                     
                 except Exception as e:
                     handle_api_error("unknown", str(e))
+        
+        # Bot yanıtı alındıktan sonra sayfayı yenile ki düzenleme butonları çıksın
+        st.rerun()
 
     # Alt bilgi
     st.markdown("---")
