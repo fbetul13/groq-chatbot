@@ -2052,20 +2052,82 @@ def check_if_needs_research(prompt: str) -> bool:
     return any(keyword in prompt_lower for keyword in research_keywords)
 
 def show_typing_animation():
-    """Yazma animasyonu göster"""
-    # Basit yazma animasyonu
-    typing_indicators = ["🤔 Düşünüyor", "🤔 Düşünüyor.", "🤔 Düşünüyor..", "🤔 Düşünüyor..."]
+    """Gelişmiş yazma animasyonu göster"""
+    # Farklı animasyon türleri
+    animation_types = {
+        "thinking": ["🤔 Düşünüyor", "🤔 Düşünüyor.", "🤔 Düşünüyor..", "🤔 Düşünüyor..."],
+        "typing": ["⌨️ Yazıyor", "⌨️ Yazıyor.", "⌨️ Yazıyor..", "⌨️ Yazıyor..."],
+        "processing": ["⚙️ İşleniyor", "⚙️ İşleniyor.", "⚙️ İşleniyor..", "⚙️ İşleniyor..."],
+        "analyzing": ["🔍 Analiz ediyor", "🔍 Analiz ediyor.", "🔍 Analiz ediyor..", "🔍 Analiz ediyor..."],
+        "searching": ["🔎 Arıyor", "🔎 Arıyor.", "🔎 Arıyor..", "🔎 Arıyor..."]
+    }
+    
+    # Rastgele animasyon türü seç
+    import random
+    animation_type = random.choice(list(animation_types.keys()))
+    indicators = animation_types[animation_type]
     
     # Progress bar ile animasyon
     progress_bar = st.progress(0)
     status_text = st.empty()
     
-    for i in range(4):
-        progress_bar.progress((i + 1) / 4)
-        status_text.text(typing_indicators[i])
-        time.sleep(0.5)
+    for i in range(len(indicators)):
+        progress_bar.progress((i + 1) / len(indicators))
+        status_text.text(indicators[i])
+        time.sleep(0.3)
     
     return progress_bar, status_text
+
+def show_message_sending_animation():
+    """Mesaj gönderme animasyonu"""
+    # Gönderme animasyonu
+    sending_indicators = ["📤 Gönderiliyor", "📤 Gönderiliyor.", "📤 Gönderiliyor..", "📤 Gönderiliyor..."]
+    
+    status_text = st.empty()
+    
+    for indicator in sending_indicators:
+        status_text.text(indicator)
+        time.sleep(0.2)
+    
+    return status_text
+
+def show_loading_dots():
+    """Yükleme noktaları animasyonu"""
+    dots = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"]
+    
+    status_text = st.empty()
+    
+    for i in range(10):
+        status_text.text(f"Yükleniyor {dots[i]}")
+        time.sleep(0.1)
+    
+    return status_text
+
+def show_pulse_animation():
+    """Nabız animasyonu"""
+    import math
+    
+    status_text = st.empty()
+    
+    for i in range(20):
+        # Sinüs dalgası ile nabız efekti
+        intensity = abs(math.sin(i * 0.5)) * 100
+        status_text.text(f"💓 İşleniyor... {intensity:.0f}%")
+        time.sleep(0.1)
+    
+    return status_text
+
+def show_typing_cursor():
+    """Yazma imleci animasyonu"""
+    cursor_states = ["|", " ", "|", " "]
+    
+    status_text = st.empty()
+    
+    for i in range(8):
+        status_text.text(f"Yazıyor{cursor_states[i % 4]}")
+        time.sleep(0.3)
+    
+    return status_text
 
 # Ana başlık
 st.markdown("""
@@ -3232,120 +3294,126 @@ else:
         
         # Bot yanıtını al
         with st.chat_message("assistant", avatar=st.session_state.bot_avatar):
-            with st.spinner("🤔 Düşünüyor..."):
-                try:
-                    # Eğer web araştırması gerekiyorsa, önce araştırma yap
-                    research_data = None
-                    if needs_research:
-                        with st.spinner("🌐 Web'den araştırıyorum..."):
-                            research_response = requests.post(
-                                f"{st.session_state.api_url}/research",
-                                json={"query": prompt},
-                                timeout=30,
-                                cookies=st.session_state.get('cookies', {})
-                            )
-                            if research_response.status_code == 200:
-                                research_data = research_response.json().get('research_result', {})
-                    
-                    # Araştırma verilerini mesaja ekle
-                    enhanced_prompt = prompt
-                    if research_data and research_data.get('success'):
-                        enhanced_prompt = f"{prompt}\n\n[Web Araştırma Sonuçları:]\n{json.dumps(research_data, ensure_ascii=False, indent=2)}"
-                    
-                    request_data = {
-                        "message": enhanced_prompt,
-                        "model": model,
-                        "temperature": temperature,
-                        "max_tokens": max_tokens,
-                        "system_message": st.session_state.system_message
-                    }
-                    
-                    if st.session_state.current_session_id:
-                        request_data["session_id"] = st.session_state.current_session_id
-                    
-                    # API çağrısı
-                    start_time = time.time()
-                    print(f"DEBUG: API URL: {st.session_state.api_url}/chat")
-                    print(f"DEBUG: Request data: {request_data}")
-                    response = requests.post(
-                        f"{st.session_state.api_url}/chat",
-                        json=request_data,
+            # Gelişmiş animasyon başlat
+            progress_bar, status_text = show_typing_animation()
+            
+            try:
+                # Eğer web araştırması gerekiyorsa, önce araştırma yap
+                research_data = None
+                if needs_research:
+                    # Araştırma animasyonu
+                    status_text.text("🔍 Web'den araştırıyorum...")
+                    research_response = requests.post(
+                        f"{st.session_state.api_url}/research",
+                        json={"query": prompt},
                         timeout=30,
                         cookies=st.session_state.get('cookies', {})
                     )
-                    print(f"DEBUG: Response status: {response.status_code}")
-                    response_time = time.time() - start_time
-                    
-                    if response.status_code == 200:
-                        data = response.json()
-                        print(f"Backend response: {data}")  # Debug için
-                        if "response" not in data:
-                            st.error(f"Backend yanıtında 'response' anahtarı yok: {data}")
-                        else:
-                            bot_response = data["response"]
-                        
-                        # Session ID'yi kaydet
-                        if "session_id" in data and not st.session_state.current_session_id:
-                            st.session_state.current_session_id = data["session_id"]
-                            load_sessions()
-                        
-                        # Bot mesajını ekle
-                        bot_message = {
-                            "role": "assistant",
-                            "content": bot_response,
-                            "time": datetime.now().strftime("%H:%M")
-                        }
-                        st.session_state.messages.append(bot_message)
-                        
-                        # Bot yanıtını göster
-                        rendered_response, _ = render_message_content(bot_response)
-                        st.markdown(rendered_response, unsafe_allow_html=True)
-                        st.caption(bot_message["time"])
-                        
-                        # Dil kalite kontrolü (eğer aktifse)
-                        if st.session_state.get('turkish_quality_check', True):
-                            quality_check = check_language_quality(bot_response, detected_lang)
-                            threshold = st.session_state.get('quality_threshold', 80)
-                            
-                            if quality_check["score"] < threshold:
-                                language_names = {
-                                    'tr': 'Türkçe', 'en': 'İngilizce', 'de': 'Almanca', 'es': 'İspanyolca',
-                                    'fr': 'Fransızca', 'it': 'İtalyanca', 'pt': 'Portekizce', 'ru': 'Rusça',
-                                    'ja': 'Japonca', 'ko': 'Korece', 'zh': 'Çince', 'ar': 'Arapça'
-                                }
-                                lang_name = language_names.get(detected_lang, detected_lang.upper())
-                                
-                                with st.expander(f"🔍 {lang_name} Kalite Kontrolü", expanded=False):
-                                    st.warning(f"⚠️ Kalite Skoru: {quality_check['score']}/100 (Eşik: {threshold})")
-                                    if quality_check["issues"]:
-                                        st.markdown("**Tespit Edilen Sorunlar:**")
-                                        for issue in quality_check["issues"]:
-                                            st.markdown(f"• {issue}")
-                                    st.info("💡 Daha iyi bir yanıt için mesajı tekrar gönderebilirsiniz.")
-                        
-                        # Token bilgilerini kaydet
-                        if "token_info" in data:
-                            st.session_state.current_token_info = data["token_info"]
-                        
-                        # Yanıt süresi istatistiği (sadece sidebar için)
-                        if not hasattr(st.session_state, 'response_times'):
-                            st.session_state.response_times = []
-                        st.session_state.response_times.append(response_time)
-                        
-                        # Otomatik kaydırma için sayfayı yenile
-                        st.session_state.auto_scroll = True
-                    
+                    if research_response.status_code == 200:
+                        research_data = research_response.json().get('research_result', {})
+                
+                # Araştırma verilerini mesaja ekle
+                enhanced_prompt = prompt
+                if research_data and research_data.get('success'):
+                    enhanced_prompt = f"{prompt}\n\n[Web Araştırma Sonuçları:]\n{json.dumps(research_data, ensure_ascii=False, indent=2)}"
+                
+                request_data = {
+                    "message": enhanced_prompt,
+                    "model": model,
+                    "temperature": temperature,
+                    "max_tokens": max_tokens,
+                    "system_message": st.session_state.system_message
+                }
+                
+                if st.session_state.current_session_id:
+                    request_data["session_id"] = st.session_state.current_session_id
+                
+                # API çağrısı öncesi animasyon
+                status_text.text("📤 Mesaj gönderiliyor...")
+                
+                # API çağrısı
+                start_time = time.time()
+                print(f"DEBUG: API URL: {st.session_state.api_url}/chat")
+                print(f"DEBUG: Request data: {request_data}")
+                response = requests.post(
+                    f"{st.session_state.api_url}/chat",
+                    json=request_data,
+                    timeout=30,
+                    cookies=st.session_state.get('cookies', {})
+                )
+                print(f"DEBUG: Response status: {response.status_code}")
+                response_time = time.time() - start_time
+                
+                if response.status_code == 200:
+                    data = response.json()
+                    print(f"Backend response: {data}")  # Debug için
+                    if "response" not in data:
+                        st.error(f"Backend yanıtında 'response' anahtarı yok: {data}")
                     else:
-                        handle_api_error("http_error", f"HTTP {response.status_code}", response)
+                        bot_response = data["response"]
+                    
+                    # Session ID'yi kaydet
+                    if "session_id" in data and not st.session_state.current_session_id:
+                        st.session_state.current_session_id = data["session_id"]
+                        load_sessions()
+                    
+                    # Bot mesajını ekle
+                    bot_message = {
+                        "role": "assistant",
+                        "content": bot_response,
+                        "time": datetime.now().strftime("%H:%M")
+                    }
+                    st.session_state.messages.append(bot_message)
+                    
+                    # Bot yanıtını göster
+                    rendered_response, _ = render_message_content(bot_response)
+                    st.markdown(rendered_response, unsafe_allow_html=True)
+                    st.caption(bot_message["time"])
+                    
+                    # Dil kalite kontrolü (eğer aktifse)
+                    if st.session_state.get('turkish_quality_check', True):
+                        quality_check = check_language_quality(bot_response, detected_lang)
+                        threshold = st.session_state.get('quality_threshold', 80)
                         
-                except requests.exceptions.Timeout:
-                    handle_api_error("timeout", "Yanıt zaman aşımına uğradı")
+                        if quality_check["score"] < threshold:
+                            language_names = {
+                                'tr': 'Türkçe', 'en': 'İngilizce', 'de': 'Almanca', 'es': 'İspanyolca',
+                                'fr': 'Fransızca', 'it': 'İtalyanca', 'pt': 'Portekizce', 'ru': 'Rusça',
+                                'ja': 'Japonca', 'ko': 'Korece', 'zh': 'Çince', 'ar': 'Arapça'
+                            }
+                            lang_name = language_names.get(detected_lang, detected_lang.upper())
+                            
+                            with st.expander(f"🔍 {lang_name} Kalite Kontrolü", expanded=False):
+                                st.warning(f"⚠️ Kalite Skoru: {quality_check['score']}/100 (Eşik: {threshold})")
+                                if quality_check["issues"]:
+                                    st.markdown("**Tespit Edilen Sorunlar:**")
+                                    for issue in quality_check["issues"]:
+                                        st.markdown(f"• {issue}")
+                                st.info("💡 Daha iyi bir yanıt için mesajı tekrar gönderebilirsiniz.")
                     
-                except requests.exceptions.ConnectionError:
-                    handle_api_error("connection", "API bağlantısı kurulamadı")
+                    # Token bilgilerini kaydet
+                    if "token_info" in data:
+                        st.session_state.current_token_info = data["token_info"]
                     
-                except Exception as e:
-                    handle_api_error("unknown", str(e))
+                    # Yanıt süresi istatistiği (sadece sidebar için)
+                    if not hasattr(st.session_state, 'response_times'):
+                        st.session_state.response_times = []
+                    st.session_state.response_times.append(response_time)
+                    
+                    # Otomatik kaydırma için sayfayı yenile
+                    st.session_state.auto_scroll = True
+                
+                else:
+                    handle_api_error("http_error", f"HTTP {response.status_code}", response)
+                    
+            except requests.exceptions.Timeout:
+                handle_api_error("timeout", "Yanıt zaman aşımına uğradı")
+                
+            except requests.exceptions.ConnectionError:
+                handle_api_error("connection", "API bağlantısı kurulamadı")
+                
+            except Exception as e:
+                handle_api_error("unknown", str(e))
         
         # Bot yanıtı alındıktan sonra sayfayı yenile ki düzenleme butonları çıksın
         st.rerun()
