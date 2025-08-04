@@ -1246,7 +1246,7 @@ def edit_message(message_index, new_content):
         return False
 
 def process_markdown_and_emoji(text):
-    """Markdown ve emoji işleme (kod blokları hariç)"""
+    """Gelişmiş Markdown ve emoji işleme"""
     if not text:
         return text
     
@@ -1265,31 +1265,187 @@ def process_markdown_and_emoji(text):
     # Satır içi kod bloklarını da sakla
     text = re.sub(r'`[^`]+`', save_code_block, text)
     
-    # Markdown formatlaması (kod blokları hariç)
-    # Başlıklar
-    text = re.sub(r'^### (.*$)', r'<h3>\1</h3>', text, flags=re.MULTILINE)
-    text = re.sub(r'^## (.*$)', r'<h2>\1</h2>', text, flags=re.MULTILINE)
-    text = re.sub(r'^# (.*$)', r'<h1>\1</h1>', text, flags=re.MULTILINE)
-    
-    # Kalın ve italik
-    text = re.sub(r'\*\*(.*?)\*\*', r'<strong>\1</strong>', text)
-    text = re.sub(r'\*(.*?)\*', r'<em>\1</em>', text)
-    
-    # Liste
-    text = re.sub(r'^\* (.*$)', r'<li>\1</li>', text, flags=re.MULTILINE)
-    text = re.sub(r'^- (.*$)', r'<li>\1</li>', text, flags=re.MULTILINE)
-    
-    # Linkler
-    text = re.sub(r'\[([^\]]+)\]\(([^)]+)\)', r'<a href="\2" target="_blank">\1</a>', text)
-    
-    # Satır sonları
-    text = text.replace('\n', '<br>')
+    try:
+        import markdown
+        from markdown.extensions import codehilite, fenced_code, tables, toc, nl2br
+        
+        # Markdown'ı HTML'e çevir
+        md = markdown.Markdown(extensions=[
+            'codehilite',  # Kod vurgulama
+            'fenced_code',  # Fenced code blocks
+            'tables',       # Tablo desteği
+            'toc',          # İçindekiler tablosu
+            'nl2br',        # Satır sonlarını <br> yap
+            'sane_lists',   # Akıllı liste işleme
+            'def_list',     # Tanım listeleri
+            'abbr',         # Kısaltmalar
+            'footnotes',    # Dipnotlar
+            'attr_list',    # Özellik listeleri
+            'md_in_html',   # HTML içinde markdown
+        ])
+        
+        # Markdown'ı işle
+        html = md.convert(text)
+        
+        # CSS stilleri ekle
+        css_styles = """
+        <style>
+        /* Markdown stilleri */
+        .markdown-content h1 {
+            color: #2c3e50;
+            border-bottom: 2px solid #3498db;
+            padding-bottom: 10px;
+            margin-top: 20px;
+            margin-bottom: 15px;
+        }
+        
+        .markdown-content h2 {
+            color: #34495e;
+            border-bottom: 1px solid #bdc3c7;
+            padding-bottom: 8px;
+            margin-top: 18px;
+            margin-bottom: 12px;
+        }
+        
+        .markdown-content h3 {
+            color: #7f8c8d;
+            margin-top: 15px;
+            margin-bottom: 10px;
+        }
+        
+        .markdown-content h4, .markdown-content h5, .markdown-content h6 {
+            color: #95a5a6;
+            margin-top: 12px;
+            margin-bottom: 8px;
+        }
+        
+        .markdown-content p {
+            line-height: 1.6;
+            margin-bottom: 12px;
+        }
+        
+        .markdown-content ul, .markdown-content ol {
+            margin-left: 20px;
+            margin-bottom: 12px;
+        }
+        
+        .markdown-content li {
+            margin-bottom: 5px;
+        }
+        
+        .markdown-content blockquote {
+            border-left: 4px solid #3498db;
+            padding-left: 15px;
+            margin-left: 0;
+            color: #7f8c8d;
+            font-style: italic;
+        }
+        
+        .markdown-content table {
+            border-collapse: collapse;
+            width: 100%;
+            margin: 15px 0;
+        }
+        
+        .markdown-content th, .markdown-content td {
+            border: 1px solid #ddd;
+            padding: 8px 12px;
+            text-align: left;
+        }
+        
+        .markdown-content th {
+            background-color: #f8f9fa;
+            font-weight: bold;
+        }
+        
+        .markdown-content tr:nth-child(even) {
+            background-color: #f8f9fa;
+        }
+        
+        .markdown-content tr:hover {
+            background-color: #e9ecef;
+        }
+        
+        .markdown-content a {
+            color: #3498db;
+            text-decoration: none;
+        }
+        
+        .markdown-content a:hover {
+            text-decoration: underline;
+        }
+        
+        .markdown-content hr {
+            border: none;
+            border-top: 2px solid #ecf0f1;
+            margin: 20px 0;
+        }
+        
+        .markdown-content strong {
+            font-weight: bold;
+            color: #2c3e50;
+        }
+        
+        .markdown-content em {
+            font-style: italic;
+            color: #7f8c8d;
+        }
+        
+        .markdown-content code {
+            background-color: #f8f9fa;
+            padding: 2px 4px;
+            border-radius: 3px;
+            font-family: monospace;
+            border: 1px solid #e9ecef;
+        }
+        
+        .markdown-content pre {
+            background-color: #f8f9fa;
+            padding: 15px;
+            border-radius: 5px;
+            overflow-x: auto;
+            border: 1px solid #e9ecef;
+        }
+        
+        .markdown-content pre code {
+            background: none;
+            padding: 0;
+            border: none;
+        }
+        </style>
+        """
+        
+        # HTML'i div içine sar
+        html = f'<div class="markdown-content">{html}</div>'
+        
+    except ImportError:
+        # Markdown kütüphanesi yoksa basit işleme
+        # Başlıklar
+        text = re.sub(r'^### (.*$)', r'<h3>\1</h3>', text, flags=re.MULTILINE)
+        text = re.sub(r'^## (.*$)', r'<h2>\1</h2>', text, flags=re.MULTILINE)
+        text = re.sub(r'^# (.*$)', r'<h1>\1</h1>', text, flags=re.MULTILINE)
+        
+        # Kalın ve italik
+        text = re.sub(r'\*\*(.*?)\*\*', r'<strong>\1</strong>', text)
+        text = re.sub(r'\*(.*?)\*', r'<em>\1</em>', text)
+        
+        # Liste
+        text = re.sub(r'^\* (.*$)', r'<li>\1</li>', text, flags=re.MULTILINE)
+        text = re.sub(r'^- (.*$)', r'<li>\1</li>', text, flags=re.MULTILINE)
+        
+        # Linkler
+        text = re.sub(r'\[([^\]]+)\]\(([^)]+)\)', r'<a href="\2" target="_blank">\1</a>', text)
+        
+        # Satır sonları
+        text = text.replace('\n', '<br>')
+        
+        html = text
     
     # Kod bloklarını geri yükle (işlenmemiş olarak)
     for i, code_block in enumerate(code_blocks):
-        text = text.replace(f"__CODE_BLOCK_{i}__", code_block)
+        html = html.replace(f"__CODE_BLOCK_{i}__", code_block)
     
-    return text
+    return html
 
 def highlight_code(code, language=None):
     """Kod için syntax highlighting uygula"""
@@ -1516,7 +1672,7 @@ def highlight_code(code, language=None):
 def render_message_content(content):
     """Mesaj içeriğini render et"""
     if not content:
-        return ""
+        return "", []
     
     # Kod bloklarını geçici olarak sakla
     code_blocks = []
@@ -2950,8 +3106,8 @@ else:
                     # Metni parçalara ayır
                     parts = rendered_content.split("__CODE_BLOCK_")
                     
-                    for i, part in enumerate(parts):
-                        if i == 0:
+                    for j, part in enumerate(parts):
+                        if j == 0:
                             # İlk parça (kod bloğu yok)
                             if part.strip():
                                 st.markdown(part, unsafe_allow_html=True)
