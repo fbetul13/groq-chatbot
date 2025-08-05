@@ -29,6 +29,12 @@ import smtplib
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 import string
+import base64
+import mimetypes
+from PIL import Image
+import cv2
+import numpy as np
+from werkzeug.utils import secure_filename
 
 # .env dosyasını yükle
 load_dotenv()
@@ -99,6 +105,146 @@ client = Groq(api_key=GROQ_API_KEY)
 
 # Web araştırma modülünü başlat
 web_research = WebResearch()
+
+# Resim analizi ayarları
+UPLOAD_FOLDER = 'uploads'
+ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'webp', 'bmp', 'tiff'}
+MAX_FILE_SIZE = 10 * 1024 * 1024  # 10MB
+
+# Upload klasörünü oluştur
+if not os.path.exists(UPLOAD_FOLDER):
+    os.makedirs(UPLOAD_FOLDER)
+
+def allowed_file(filename):
+    """Dosya uzantısının izin verilen uzantılardan olup olmadığını kontrol et"""
+    return '.' in filename and \
+           filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+
+def validate_image_file(file):
+    """Resim dosyasını doğrula"""
+    if not file:
+        return False, "Dosya yüklenmedi"
+    
+    if file.filename == '':
+        return False, "Dosya adı boş"
+    
+    if not allowed_file(file.filename):
+        return False, f"Desteklenmeyen dosya formatı. İzin verilen formatlar: {', '.join(ALLOWED_EXTENSIONS)}"
+    
+    # Dosya boyutunu kontrol et
+    file.seek(0, 2)  # Dosyanın sonuna git
+    file_size = file.tell()
+    file.seek(0)  # Dosyanın başına dön
+    
+    if file_size > MAX_FILE_SIZE:
+        return False, f"Dosya boyutu çok büyük. Maksimum boyut: {MAX_FILE_SIZE // (1024*1024)}MB"
+    
+    return True, "OK"
+
+def save_image_file(file, user_id):
+    """Resim dosyasını kaydet ve dosya yolunu döndür"""
+    try:
+        # Güvenli dosya adı oluştur
+        filename = secure_filename(file.filename)
+        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+        user_folder = os.path.join(UPLOAD_FOLDER, str(user_id))
+        
+        # Kullanıcı klasörünü oluştur
+        if not os.path.exists(user_folder):
+            os.makedirs(user_folder)
+        
+        # Benzersiz dosya adı oluştur
+        file_extension = filename.rsplit('.', 1)[1].lower()
+        unique_filename = f"{timestamp}_{uuid.uuid4().hex[:8]}.{file_extension}"
+        file_path = os.path.join(user_folder, unique_filename)
+        
+        # Dosyayı kaydet
+        file.save(file_path)
+        
+        return file_path, unique_filename
+        
+    except Exception as e:
+        logger.error(f"Resim kaydetme hatası: {str(e)}")
+        return None, None
+
+def analyze_image_with_groq(image_path, analysis_type="general"):
+    """Groq API ile resim analizi yap"""
+    try:
+        # Resmi base64'e çevir
+        with open(image_path, "rb") as image_file:
+            encoded_image = base64.b64encode(image_file.read()).decode('utf-8')
+        
+        # Analiz türüne göre prompt oluştur
+        if analysis_type == "general":
+            system_prompt = """Sen bir resim analiz uzmanısın. Resmi detaylı olarak analiz et ve şu bilgileri ver:
+
+1. **Genel Açıklama**: Resimde ne görüyorsun?
+2. **Nesneler**: Resimde hangi nesneler var?
+3. **Renkler**: Hangi renkler baskın?
+4. **Kompozisyon**: Resmin düzeni nasıl?
+5. **Duygu/Atmosfer**: Resim nasıl bir duygu veriyor?
+6. **Detaylar**: Önemli detaylar neler?
+
+Türkçe olarak, detaylı ve anlaşılır şekilde yanıtla."""
+        
+        elif analysis_type == "objects":
+            system_prompt = """Sen bir nesne tanıma uzmanısın. Resimdeki nesneleri tespit et ve listele:
+
+1. **Ana Nesneler**: Resmin odak noktasındaki nesneler
+2. **Arka Plan Nesneleri**: Arka plandaki nesneler
+3. **Küçük Detaylar**: Küçük ama önemli nesneler
+4. **Nesne İlişkileri**: Nesneler arasındaki ilişkiler
+
+Her nesne için konumunu da belirt."""
+        
+        elif analysis_type == "text":
+            system_prompt = """Sen bir OCR (Optical Character Recognition) uzmanısın. Resimdeki tüm metinleri oku ve çıkar:
+
+1. **Ana Metinler**: Büyük ve net yazılar
+2. **Küçük Yazılar**: Küçük etiketler, işaretler
+3. **Sayılar**: Tarihler, fiyatlar, kodlar
+4. **Semboller**: Logolar, işaretler
+5. **Dil**: Metinlerin hangi dilde olduğu
+
+Metinleri olduğu gibi, doğru şekilde yaz."""
+        
+        elif analysis_type == "emotions":
+            system_prompt = """Sen bir duygu analizi uzmanısın. Resimdeki duyguları ve atmosferi analiz et:
+
+1. **Genel Duygu**: Resmin verdiği ana duygu
+2. **Yüz İfadeleri**: Varsa insan yüzlerindeki ifadeler
+3. **Renk Psikolojisi**: Renklerin duygusal etkisi
+4. **Atmosfer**: Resmin genel atmosferi
+5. **Mood**: Resmin ruh hali
+
+Duyguları detaylı olarak açıkla."""
+        
+        else:
+            system_prompt = """Resmi detaylı olarak analiz et ve açıkla."""
+        
+        # Groq API'ye gönder - Vision modeli için doğru format
+        response = client.chat.completions.create(
+            model="llama-3.1-8b-instant",  # Vision destekli model
+            messages=[
+                {
+                    "role": "system",
+                    "content": system_prompt
+                },
+                {
+                    "role": "user",
+                    "content": f"Bu resmi analiz et ve {analysis_type} odaklı detaylı bir rapor ver. Resim: data:image/jpeg;base64,{encoded_image}"
+                }
+            ],
+            max_tokens=2048,
+            temperature=0.7
+        )
+        
+        return response.choices[0].message.content
+        
+    except Exception as e:
+        logger.error(f"Resim analizi hatası: {str(e)}")
+        return f"Resim analizi sırasında hata oluştu: {str(e)}"
+
 
 # Veritabanı başlatma
 def init_db():
@@ -195,6 +341,23 @@ def init_db():
             temperature REAL,
             max_tokens INTEGER,
             deleted_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    ''')
+    
+    # Resim analizi tablosu
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS image_analysis (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER,
+            session_id TEXT,
+            image_filename TEXT,
+            image_path TEXT,
+            analysis_type TEXT,
+            analysis_result TEXT,
+            file_size INTEGER,
+            upload_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (user_id) REFERENCES users (id),
+            FOREIGN KEY (session_id) REFERENCES chat_sessions (session_id)
         )
     ''')
     
@@ -2935,6 +3098,217 @@ def admin_logs():
             
     except Exception as e:
         logger.error(f"Admin logs error: {str(e)} - user_id={user_id}, username={username} - IP: {request.remote_addr}")
+        return jsonify({'error': str(e)}), 500
+
+# Resim Analizi Endpoint'leri
+@app.route('/api/upload-image', methods=['POST'])
+@require_auth
+@limiter.limit("10 per hour")  # Saatte 10 resim yükleme
+def upload_image():
+    """Resim yükle ve analiz et"""
+    try:
+        user_id = session['user_id']
+        username = session.get('username', 'unknown')
+        
+        logger.info(f"Image upload request: user_id={user_id}, username={username} - IP: {request.remote_addr}")
+        
+        # Dosya kontrolü
+        if 'image' not in request.files:
+            return jsonify({'error': 'Resim dosyası bulunamadı'}), 400
+        
+        file = request.files['image']
+        
+        # Dosya doğrulama
+        is_valid, message = validate_image_file(file)
+        if not is_valid:
+            logger.warning(f"Image validation failed: {message} - user_id={user_id}, username={username} - IP: {request.remote_addr}")
+            return jsonify({'error': message}), 400
+        
+        # Analiz türü
+        analysis_type = request.form.get('analysis_type', 'general')
+        session_id = request.form.get('session_id', None)
+        
+        # Dosyayı kaydet
+        file_path, filename = save_image_file(file, user_id)
+        if not file_path:
+            return jsonify({'error': 'Dosya kaydedilemedi'}), 500
+        
+        # Dosya boyutunu al
+        file_size = os.path.getsize(file_path)
+        
+        # Resmi analiz et
+        analysis_result = analyze_image_with_groq(file_path, analysis_type)
+        
+        # Veritabanına kaydet
+        conn = sqlite3.connect('chatbot.db')
+        cursor = conn.cursor()
+        
+        cursor.execute('''
+            INSERT INTO image_analysis (user_id, session_id, image_filename, image_path, analysis_type, analysis_result, file_size)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+        ''', (user_id, session_id, filename, file_path, analysis_type, analysis_result, file_size))
+        
+        analysis_id = cursor.lastrowid
+        conn.commit()
+        conn.close()
+        
+        logger.info(f"Image analysis completed: user_id={user_id}, username={username}, analysis_id={analysis_id} - IP: {request.remote_addr}")
+        
+        return jsonify({
+            'success': True,
+            'analysis_id': analysis_id,
+            'filename': filename,
+            'analysis_type': analysis_type,
+            'analysis_result': analysis_result,
+            'file_size': file_size,
+            'upload_time': datetime.now().isoformat()
+        })
+        
+    except Exception as e:
+        logger.error(f"Image upload error: {str(e)} - user_id={user_id}, username={username} - IP: {request.remote_addr} - Traceback: {traceback.format_exc()}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/analyze-image', methods=['POST'])
+@require_auth
+@limiter.limit("20 per hour")  # Saatte 20 analiz
+def analyze_image():
+    """Mevcut resmi yeniden analiz et"""
+    try:
+        user_id = session['user_id']
+        username = session.get('username', 'unknown')
+        
+        data = request.get_json()
+        analysis_id = data.get('analysis_id')
+        analysis_type = data.get('analysis_type', 'general')
+        
+        if not analysis_id:
+            return jsonify({'error': 'Analiz ID gerekli'}), 400
+        
+        # Veritabanından resim bilgilerini al
+        conn = sqlite3.connect('chatbot.db')
+        cursor = conn.cursor()
+        
+        cursor.execute('''
+            SELECT image_path, image_filename FROM image_analysis 
+            WHERE id = ? AND user_id = ?
+        ''', (analysis_id, user_id))
+        
+        image_data = cursor.fetchone()
+        if not image_data:
+            conn.close()
+            return jsonify({'error': 'Resim bulunamadı'}), 404
+        
+        image_path, filename = image_data
+        
+        # Dosyanın hala var olduğunu kontrol et
+        if not os.path.exists(image_path):
+            conn.close()
+            return jsonify({'error': 'Resim dosyası bulunamadı'}), 404
+        
+        # Yeni analiz yap
+        new_analysis_result = analyze_image_with_groq(image_path, analysis_type)
+        
+        # Veritabanını güncelle
+        cursor.execute('''
+            UPDATE image_analysis 
+            SET analysis_type = ?, analysis_result = ?
+            WHERE id = ?
+        ''', (analysis_type, new_analysis_result, analysis_id))
+        
+        conn.commit()
+        conn.close()
+        
+        logger.info(f"Image re-analysis completed: user_id={user_id}, username={username}, analysis_id={analysis_id} - IP: {request.remote_addr}")
+        
+        return jsonify({
+            'success': True,
+            'analysis_id': analysis_id,
+            'filename': filename,
+            'analysis_type': analysis_type,
+            'analysis_result': new_analysis_result
+        })
+        
+    except Exception as e:
+        logger.error(f"Image analysis error: {str(e)} - user_id={user_id}, username={username} - IP: {request.remote_addr}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/image-history', methods=['GET'])
+@require_auth
+def get_image_history():
+    """Kullanıcının resim analiz geçmişini getir"""
+    try:
+        user_id = session['user_id']
+        
+        conn = sqlite3.connect('chatbot.db')
+        cursor = conn.cursor()
+        
+        cursor.execute('''
+            SELECT id, image_filename, analysis_type, analysis_result, file_size, upload_time
+            FROM image_analysis 
+            WHERE user_id = ?
+            ORDER BY upload_time DESC
+            LIMIT 50
+        ''', (user_id,))
+        
+        history = cursor.fetchall()
+        conn.close()
+        
+        history_list = []
+        for row in history:
+            history_list.append({
+                'id': row[0],
+                'filename': row[1],
+                'analysis_type': row[2],
+                'analysis_result': row[3],
+                'file_size': row[4],
+                'upload_time': row[5]
+            })
+        
+        return jsonify({'history': history_list})
+        
+    except Exception as e:
+        logger.error(f"Image history error: {str(e)} - user_id={user_id} - IP: {request.remote_addr}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/image/<int:analysis_id>', methods=['DELETE'])
+@require_auth
+def delete_image_analysis(analysis_id):
+    """Resim analizini sil"""
+    try:
+        user_id = session['user_id']
+        username = session.get('username', 'unknown')
+        
+        conn = sqlite3.connect('chatbot.db')
+        cursor = conn.cursor()
+        
+        # Resim bilgilerini al
+        cursor.execute('''
+            SELECT image_path, image_filename FROM image_analysis 
+            WHERE id = ? AND user_id = ?
+        ''', (analysis_id, user_id))
+        
+        image_data = cursor.fetchone()
+        if not image_data:
+            conn.close()
+            return jsonify({'error': 'Resim bulunamadı'}), 404
+        
+        image_path, filename = image_data
+        
+        # Dosyayı sil
+        if os.path.exists(image_path):
+            os.remove(image_path)
+        
+        # Veritabanından sil
+        cursor.execute('DELETE FROM image_analysis WHERE id = ?', (analysis_id,))
+        conn.commit()
+        conn.close()
+        
+        logger.info(f"Image analysis deleted: user_id={user_id}, username={username}, analysis_id={analysis_id} - IP: {request.remote_addr}")
+        
+        return jsonify({'success': True, 'message': 'Resim analizi silindi'})
+        
+    except Exception as e:
+        logger.error(f"Image deletion error: {str(e)} - user_id={user_id}, username={username} - IP: {request.remote_addr}")
         return jsonify({'error': str(e)}), 500
 
 if __name__ == '__main__':

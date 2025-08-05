@@ -2620,6 +2620,216 @@ def show_typing_cursor():
     
     return status_text
 
+# Resim Analizi Fonksiyonları
+def upload_and_analyze_image(image_file, analysis_type="general", session_id=None):
+    """Resim yükle ve analiz et"""
+    try:
+        files = {'image': image_file}
+        data = {
+            'analysis_type': analysis_type,
+            'session_id': session_id
+        }
+        
+        response = requests.post(
+            f"{st.session_state.api_url}/upload-image",
+            files=files,
+            data=data,
+            timeout=60,
+            cookies=st.session_state.get('cookies', {})
+        )
+        
+        if response.status_code == 200:
+            return response.json()
+        else:
+            error_data = response.json()
+            return {'error': error_data.get('error', 'Resim analizi başarısız')}
+            
+    except Exception as e:
+        return {'error': f'Resim yükleme hatası: {str(e)}'}
+
+def reanalyze_image(analysis_id, analysis_type="general"):
+    """Mevcut resmi yeniden analiz et"""
+    try:
+        data = {
+            'analysis_id': analysis_id,
+            'analysis_type': analysis_type
+        }
+        
+        response = requests.post(
+            f"{st.session_state.api_url}/analyze-image",
+            json=data,
+            timeout=60,
+            cookies=st.session_state.get('cookies', {})
+        )
+        
+        if response.status_code == 200:
+            return response.json()
+        else:
+            error_data = response.json()
+            return {'error': error_data.get('error', 'Yeniden analiz başarısız')}
+            
+    except Exception as e:
+        return {'error': f'Yeniden analiz hatası: {str(e)}'}
+
+def get_image_history():
+    """Resim analiz geçmişini getir"""
+    try:
+        response = requests.get(
+            f"{st.session_state.api_url}/image-history",
+            timeout=10,
+            cookies=st.session_state.get('cookies', {})
+        )
+        
+        if response.status_code == 200:
+            return response.json()
+        else:
+            return {'history': []}
+            
+    except Exception as e:
+        return {'history': []}
+
+def delete_image_analysis(analysis_id):
+    """Resim analizini sil"""
+    try:
+        response = requests.delete(
+            f"{st.session_state.api_url}/image/{analysis_id}",
+            timeout=10,
+            cookies=st.session_state.get('cookies', {})
+        )
+        
+        if response.status_code == 200:
+            return True
+        else:
+            return False
+            
+    except Exception as e:
+        return False
+
+def format_file_size(size_bytes):
+    """Dosya boyutunu formatla"""
+    if size_bytes == 0:
+        return "0 B"
+    
+    size_names = ["B", "KB", "MB", "GB"]
+    i = 0
+    while size_bytes >= 1024 and i < len(size_names) - 1:
+        size_bytes /= 1024.0
+        i += 1
+    
+    return f"{size_bytes:.1f} {size_names[i]}"
+
+def get_analysis_type_name(analysis_type):
+    """Analiz türü adını getir"""
+    types = {
+        'general': 'Genel Analiz',
+        'objects': 'Nesne Tanıma',
+        'text': 'Metin Okuma (OCR)',
+        'emotions': 'Duygu Analizi'
+    }
+    return types.get(analysis_type, analysis_type)
+
+def show_image_analysis_interface():
+    """Resim analizi arayüzünü göster"""
+    st.markdown("## 🖼️ Resim Analizi")
+    st.markdown("Resim yükleyin ve AI ile analiz edin!")
+    
+    # Analiz türü seçimi
+    analysis_type = st.selectbox(
+        "Analiz Türü",
+        options=['general', 'objects', 'text', 'emotions'],
+        format_func=get_analysis_type_name,
+        help="Resmin nasıl analiz edileceğini seçin"
+    )
+    
+    # Resim yükleme
+    uploaded_file = st.file_uploader(
+        "Resim Yükle",
+        type=['png', 'jpg', 'jpeg', 'gif', 'webp', 'bmp', 'tiff'],
+        help="Analiz edilecek resmi seçin (maksimum 10MB)"
+    )
+    
+    if uploaded_file is not None:
+        # Resim önizleme
+        col1, col2 = st.columns([1, 2])
+        
+        with col1:
+            st.image(uploaded_file, caption="Yüklenen Resim", use_column_width=True)
+            
+            # Dosya bilgileri
+            file_size = format_file_size(uploaded_file.size)
+            st.info(f"📁 Dosya: {uploaded_file.name}\n📏 Boyut: {file_size}")
+        
+        with col2:
+            if st.button("🔍 Resmi Analiz Et", type="primary", use_container_width=True):
+                with st.spinner("Resim analiz ediliyor..."):
+                    # Resmi analiz et
+                    result = upload_and_analyze_image(
+                        uploaded_file, 
+                        analysis_type, 
+                        st.session_state.get('current_session_id')
+                    )
+                    
+                    if 'error' in result:
+                        st.error(f"❌ Hata: {result['error']}")
+                    else:
+                        st.success("✅ Analiz tamamlandı!")
+                        
+                        # Analiz sonucunu göster
+                        st.markdown("### 📊 Analiz Sonucu")
+                        st.markdown(result['analysis_result'])
+                        
+                        # Detaylar
+                        with st.expander("📋 Analiz Detayları"):
+                            st.write(f"**Analiz ID:** {result['analysis_id']}")
+                            st.write(f"**Analiz Türü:** {get_analysis_type_name(result['analysis_type'])}")
+                            st.write(f"**Dosya Boyutu:** {format_file_size(result['file_size'])}")
+                            st.write(f"**Yükleme Zamanı:** {result['upload_time']}")
+    
+    # Resim geçmişi
+    st.markdown("---")
+    st.markdown("### 📚 Resim Analiz Geçmişi")
+    
+    history_data = get_image_history()
+    if history_data.get('history'):
+        for item in history_data['history']:
+            with st.expander(f"📷 {item['filename']} - {get_analysis_type_name(item['analysis_type'])}"):
+                col1, col2 = st.columns([3, 1])
+                
+                with col1:
+                    st.markdown("**Analiz Sonucu:**")
+                    st.markdown(item['analysis_result'][:500] + "..." if len(item['analysis_result']) > 500 else item['analysis_result'])
+                    
+                    st.write(f"**Dosya Boyutu:** {format_file_size(item['file_size'])}")
+                    st.write(f"**Yükleme Zamanı:** {item['upload_time']}")
+                
+                with col2:
+                    # Yeniden analiz
+                    new_analysis_type = st.selectbox(
+                        "Yeniden Analiz",
+                        options=['general', 'objects', 'text', 'emotions'],
+                        format_func=get_analysis_type_name,
+                        key=f"reanalyze_{item['id']}"
+                    )
+                    
+                    if st.button("🔄 Yeniden Analiz Et", key=f"reanalyze_btn_{item['id']}"):
+                        with st.spinner("Yeniden analiz ediliyor..."):
+                            result = reanalyze_image(item['id'], new_analysis_type)
+                            if 'error' in result:
+                                st.error(f"❌ Hata: {result['error']}")
+                            else:
+                                st.success("✅ Yeniden analiz tamamlandı!")
+                                # st.rerun() kaldırıldı - sekme değişikliğini önlemek için
+                    
+                    # Sil
+                    if st.button("🗑️ Sil", key=f"delete_{item['id']}"):
+                        if delete_image_analysis(item['id']):
+                            st.success("✅ Silindi!")
+                            # st.rerun() kaldırıldı - sekme değişikliğini önlemek için
+                        else:
+                            st.error("❌ Silme başarısız!")
+    else:
+        st.info("Henüz resim analizi yapılmamış.")
+
 # URL parametrelerini kontrol et
 query_params = st.experimental_get_query_params()
 current_page = query_params.get("page", ["main"])[0]
@@ -4094,3 +4304,52 @@ else:
     if st.session_state.get('auto_scroll', False):
         st.markdown("<br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br>", unsafe_allow_html=True)
         st.session_state.auto_scroll = False
+
+    # Ana sekmeler - Sayfanın başında tanımla
+    if 'current_tab' not in st.session_state:
+        st.session_state.current_tab = "💬 Sohbet"
+    
+    # Tab seçimi
+    selected_tab = st.selectbox(
+        "Sekme Seçin",
+        ["💬 Sohbet", "📚 Oturumlar", "🖼️ Resim Analizi"],
+        index=["💬 Sohbet", "📚 Oturumlar", "🖼️ Resim Analizi"].index(st.session_state.current_tab),
+        key="tab_selector",
+        label_visibility="collapsed"
+    )
+    
+    # Tab değişikliğini kaydet
+    if selected_tab != st.session_state.current_tab:
+        st.session_state.current_tab = selected_tab
+    
+    # Seçili taba göre içerik göster
+    if st.session_state.current_tab == "💬 Sohbet":
+        # Sohbet arayüzü
+        st.markdown("## 💬 Sohbet")
+        
+        # Mevcut mesajları göster
+        for i, message in enumerate(st.session_state.messages):
+            if message["role"] == "user":
+                with st.chat_message("user", avatar=st.session_state.user_avatar):
+                    rendered_content, _ = render_message_content(message["content"])
+                    st.markdown(rendered_content, unsafe_allow_html=True)
+                    st.caption(message.get("time", ""))
+            else:
+                with st.chat_message("assistant", avatar=st.session_state.bot_avatar):
+                    rendered_content, _ = render_message_content(message["content"])
+                    st.markdown(rendered_content, unsafe_allow_html=True)
+                    st.caption(message.get("time", ""))
+        
+        # Kullanıcı girişi
+        prompt = st.chat_input("Mesajınızı yazın...", key="chat_input_tab")
+        if prompt:
+            # Mesaj gönderme işlemi burada olacak
+            st.info(f"Mesaj gönderildi: {prompt}")
+        
+    elif st.session_state.current_tab == "📚 Oturumlar":
+        # Oturumlar arayüzü
+        st.markdown("## 📚 Oturumlar")
+        st.info("Oturumlar arayüzü burada olacak")
+        
+    elif st.session_state.current_tab == "🖼️ Resim Analizi":
+        show_image_analysis_interface()
