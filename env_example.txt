@@ -1,15 +1,87 @@
-# Groq API anahtarı
-GROQ_API_KEY=your_actual_groq_api_key_here
+# ========================================
+# AI Chatbot Environment Configuration
+# ========================================
 
-# Flask secret key (otomatik oluşturulur, değiştirebilirsiniz)
-SECRET_KEY=your_secret_key_here_or_leave_empty_for_auto_generation
+# Groq API Key - https://console.groq.com/
+# Get your API key from: https://console.groq.com/keys
+GROQ_API_KEY=your-groq-api-key-here
 
-# Web araştırma API anahtarları (opsiyonel)
-OPENWEATHER_API_KEY=your_openweather_api_key_here
-GOOGLE_MAPS_API_KEY=your_google_maps_api_key_here
+# Flask Secret Key (generate with: python -c "import secrets; print(secrets.token_hex(16))")
+# This is used for session encryption and security
+SECRET_KEY=your-secret-key-here
 
-# SMTP Email ayarları (şifre sıfırlama için)
+# Email Configuration (for password reset)
+# Gmail example (enable 2FA and use App Password)
 SMTP_SERVER=smtp.gmail.com
 SMTP_PORT=587
 SMTP_USERNAME=your-email@gmail.com
-SMTP_PASSWORD=your-app-password 
+SMTP_PASSWORD=your-app-password
+
+# Database Configuration
+DATABASE_URL=sqlite:///chatbot.db
+
+# Logging Configuration
+LOG_LEVEL=INFO
+LOG_FILE=logs/chatbot.log
+
+# Rate Limiting
+RATE_LIMIT_PER_MINUTE=10
+RATE_LIMIT_PER_HOUR=100
+
+# File Upload Configuration
+MAX_FILE_SIZE=10485760  # 10MB in bytes
+ALLOWED_EXTENSIONS=png,jpg,jpeg,gif,webp,bmp,tiff
+
+# Security Configuration
+SESSION_COOKIE_SECURE=False
+SESSION_COOKIE_HTTPONLY=True
+SESSION_COOKIE_SAMESITE=Lax
+
+# Docker Configuration
+# Backend API URL (for frontend)
+BACKEND_API_URL=http://localhost:5002/api
+
+# Port Configuration
+BACKEND_PORT=5002
+FRONTEND_PORT=8501
+
+# Database Configuration
+POSTGRES_DB=chatbot
+POSTGRES_USER=chatbot_user
+POSTGRES_PASSWORD=chatbot_pass
+
+# Redis Configuration
+REDIS_PASSWORD=redis_pass
+
+# Monitoring Configuration
+GRAFANA_PASSWORD=admin123
+
+# ========================================
+# Optional: Advanced Configuration
+# ========================================
+
+# Admin User Configuration
+# Set to 'true' to enable admin features
+ENABLE_ADMIN_PANEL=true
+
+# Default Admin Credentials (change after first login)
+DEFAULT_ADMIN_USERNAME=admin
+DEFAULT_ADMIN_PASSWORD=admin123
+
+# Image Analysis Configuration
+ENABLE_IMAGE_ANALYSIS=true
+MAX_IMAGE_SIZE=10485760  # 10MB
+
+# Web Research Configuration
+ENABLE_WEB_RESEARCH=true
+RESEARCH_TIMEOUT=30
+
+# ========================================
+# Development Configuration
+# ========================================
+
+# Set to 'development' for debug mode
+FLASK_ENV=production
+
+# Enable debug logging
+DEBUG=false 

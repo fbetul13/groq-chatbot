@@ -45,6 +45,11 @@ Thumbs.db
 chatbot.db
 cookies.txt
 test.txt
+test_*.py
+*.txt
+!requirements.txt
+!runtime.txt
+!Procfile
 
 # Documentation
 README.md
@@ -53,4 +58,9 @@ README.md
 # Docker
 Dockerfile
 docker-compose.yml
-.dockerignore 
+.dockerignore
+
+# Logs and uploads
+logs/
+uploads/
+.env.save 

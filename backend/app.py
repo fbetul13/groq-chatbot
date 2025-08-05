@@ -85,7 +85,7 @@ app.secret_key = os.getenv('SECRET_KEY', secrets.token_hex(16))
 limiter = Limiter(
     app=app,
     key_func=get_remote_address,
-    default_limits=["200 per day", "50 per hour"],
+    default_limits=["5000 per day", "1000 per hour"],
     storage_uri="memory://"
 )
 
@@ -2593,6 +2593,7 @@ def web_research():
         }), 500
 
 @app.route('/api/health', methods=['GET'])
+@limiter.exempt
 def health_check():
     return jsonify({'status': 'healthy', 'message': 'Chatbot API is running'})
 

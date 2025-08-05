@@ -79,6 +79,9 @@ def get_theme_css(theme="light"):
         .sidebar .sidebar-content {
             background-color: #1a1a1a !important;
             color: #ffffff !important;
+            width: 300px !important;
+            min-width: 300px !important;
+            max-width: 300px !important;
         }
         
         .stTabs [data-baseweb="tab-list"] {
@@ -110,11 +113,21 @@ def get_theme_css(theme="light"):
             border-color: #444444 !important;
         }
         
-        /* Sidebar butonları için küçük font */
+        /* Sidebar butonları için küçük font ve tek satır */
         .sidebar .stButton > button {
             font-size: 0.75rem !important;
             padding: 0.25rem 0.5rem !important;
             min-height: auto !important;
+            white-space: nowrap !important;
+            overflow: hidden !important;
+            text-overflow: ellipsis !important;
+        }
+        
+        /* Sidebar metinlerinin tek satırda kalmasını sağla */
+        .sidebar .stMarkdown {
+            white-space: nowrap !important;
+            overflow: hidden !important;
+            text-overflow: ellipsis !important;
         }
         """
     else:
@@ -173,6 +186,9 @@ def get_theme_css(theme="light"):
         .sidebar .sidebar-content {
             background-color: #f8f9fa !important;
             color: #333333 !important;
+            width: 300px !important;
+            min-width: 300px !important;
+            max-width: 300px !important;
         }
         
         .stTabs [data-baseweb="tab-list"] {
@@ -204,11 +220,21 @@ def get_theme_css(theme="light"):
             border-color: #cccccc !important;
         }
         
-        /* Sidebar butonları için küçük font */
+        /* Sidebar butonları için küçük font ve tek satır */
         .sidebar .stButton > button {
             font-size: 0.75rem !important;
             padding: 0.25rem 0.5rem !important;
             min-height: auto !important;
+            white-space: nowrap !important;
+            overflow: hidden !important;
+            text-overflow: ellipsis !important;
+        }
+        
+        /* Sidebar metinlerinin tek satırda kalmasını sağla */
+        .sidebar .stMarkdown {
+            white-space: nowrap !important;
+            overflow: hidden !important;
+            text-overflow: ellipsis !important;
         }
         """
 
@@ -720,6 +746,19 @@ if "cookies" not in st.session_state:
 if "auth_mode" not in st.session_state:
     st.session_state.auth_mode = "login"  # "login" veya "register"
 
+# Cache sistemi için session state
+if "auth_check_time" not in st.session_state:
+    st.session_state.auth_check_time = 0
+
+if "auth_check_result" not in st.session_state:
+    st.session_state.auth_check_result = False
+
+if "admin_check_time" not in st.session_state:
+    st.session_state.admin_check_time = 0
+
+if "admin_check_result" not in st.session_state:
+    st.session_state.admin_check_result = False
+
 # Avatar'ları session state'e ekle
 if "user_avatar" not in st.session_state:
     st.session_state.user_avatar = get_user_avatar()
@@ -748,31 +787,54 @@ st.markdown(f"""
 # API fonksiyonları
 def check_auth_status():
     """Kullanıcı kimlik doğrulama durumunu kontrol et"""
+    # Cache kontrolü - son 60 saniyede kontrol edildiyse cache'den döndür
+    current_time = time.time()
+    if current_time - st.session_state.auth_check_time < 60:  # 60 saniye cache
+        return st.session_state.auth_check_result
+    
     try:
         response = requests.get(f"{st.session_state.api_url}/user", timeout=5, cookies=st.session_state.get('cookies', {}))
         if response.status_code == 200:
             data = response.json()
             st.session_state.user_id = data['user_id']
             st.session_state.username = data['username']
-            return True
+            result = True
         else:
             st.session_state.user_id = None
             st.session_state.username = None
-            return False
+            result = False
+        
+        # Cache'e kaydet
+        st.session_state.auth_check_time = current_time
+        st.session_state.auth_check_result = result
+        return result
     except:
         st.session_state.user_id = None
         st.session_state.username = None
+        # Cache'e kaydet
+        st.session_state.auth_check_time = current_time
+        st.session_state.auth_check_result = False
         return False
 
 def check_admin_status():
     """Kullanıcının admin durumunu kontrol et"""
+    # Cache kontrolü - son 120 saniyede kontrol edildiyse cache'den döndür
+    current_time = time.time()
+    if current_time - st.session_state.admin_check_time < 120:  # 120 saniye cache
+        return st.session_state.admin_check_result
+    
     try:
         response = requests.get(f"{st.session_state.api_url}/admin/dashboard", timeout=5, cookies=st.session_state.get('cookies', {}))
-        if response.status_code == 200:
-            return True
-        else:
-            return False
+        result = response.status_code == 200
+        
+        # Cache'e kaydet
+        st.session_state.admin_check_time = current_time
+        st.session_state.admin_check_result = result
+        return result
     except:
+        # Cache'e kaydet
+        st.session_state.admin_check_time = current_time
+        st.session_state.admin_check_result = False
         return False
 
 def login_user(username, password):
@@ -2940,7 +3002,11 @@ else:
     """, unsafe_allow_html=True)
 
     # Kullanıcı kimlik doğrulama durumunu kontrol et
-    is_authenticated = check_auth_status()
+    # Session state'te kullanıcı bilgileri varsa API'ye istek atmadan kullan
+    if st.session_state.user_id and st.session_state.username:
+        is_authenticated = True
+    else:
+        is_authenticated = check_auth_status()
 
 # Kullanıcı giriş yapmamışsa giriş/ kayıt formunu göster
 if not is_authenticated:
@@ -3235,9 +3301,8 @@ else:
                 st.rerun()
         
         with col2:
-            if st.button("🔄 Sohbeti Yenile", use_container_width=True):
-                st.success("🔄 Sohbet yenilendi! Yeni avatar'ları görebilirsiniz.")
-                st.rerun()
+            # Sohbet yenileme butonu kaldırıldı
+            pass
         
         # Avatar test mesajı
         if st.button("🧪 Avatar Test Mesajı Gönder", use_container_width=True):
@@ -3772,8 +3837,7 @@ else:
         
         st.markdown("---")
         
-        # Sohbet Oturumları
-        st.markdown("## 💬 Sohbet Oturumları")
+        # Sohbet Oturumları bölümü kaldırıldı
         
         # Oturumları yenile butonu
         if st.button("🔄 Oturumları Yenile", use_container_width=True):
@@ -3905,10 +3969,7 @@ else:
         
         st.markdown("---")
         
-        # Sohbeti temizle
-        if st.button("🗑️ Sohbeti Temizle", use_container_width=True):
-            st.session_state.messages = []
-            st.success("Sohbet geçmişi temizlendi!")
+        # Sohbet temizleme butonu kaldırıldı
 
         # HESAP SİLME BÖLÜMÜ (sidebar'ın en altı)
         st.markdown('---')
@@ -3984,6 +4045,13 @@ else:
                 st.session_state.quality_threshold = threshold
                 st.sidebar.success(f"✅ Kalite eşiği: {threshold}")
 
+    # Ana chat arayüzü - Sayfanın başında
+    st.markdown("## 💬 AI Chatbot")
+    
+    # Resim analizi butonu (opsiyonel)
+    if st.button("🖼️ Resim Analizi", use_container_width=True):
+        show_image_analysis_interface()
+    
     # Mevcut oturum bilgisi
     if st.session_state.current_session_id:
         current_session = next((s for s in st.session_state.sessions if s['session_id'] == st.session_state.current_session_id), None)
@@ -4305,51 +4373,4 @@ else:
         st.markdown("<br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br>", unsafe_allow_html=True)
         st.session_state.auto_scroll = False
 
-    # Ana sekmeler - Sayfanın başında tanımla
-    if 'current_tab' not in st.session_state:
-        st.session_state.current_tab = "💬 Sohbet"
-    
-    # Tab seçimi
-    selected_tab = st.selectbox(
-        "Sekme Seçin",
-        ["💬 Sohbet", "📚 Oturumlar", "🖼️ Resim Analizi"],
-        index=["💬 Sohbet", "📚 Oturumlar", "🖼️ Resim Analizi"].index(st.session_state.current_tab),
-        key="tab_selector",
-        label_visibility="collapsed"
-    )
-    
-    # Tab değişikliğini kaydet
-    if selected_tab != st.session_state.current_tab:
-        st.session_state.current_tab = selected_tab
-    
-    # Seçili taba göre içerik göster
-    if st.session_state.current_tab == "💬 Sohbet":
-        # Sohbet arayüzü
-        st.markdown("## 💬 Sohbet")
-        
-        # Mevcut mesajları göster
-        for i, message in enumerate(st.session_state.messages):
-            if message["role"] == "user":
-                with st.chat_message("user", avatar=st.session_state.user_avatar):
-                    rendered_content, _ = render_message_content(message["content"])
-                    st.markdown(rendered_content, unsafe_allow_html=True)
-                    st.caption(message.get("time", ""))
-            else:
-                with st.chat_message("assistant", avatar=st.session_state.bot_avatar):
-                    rendered_content, _ = render_message_content(message["content"])
-                    st.markdown(rendered_content, unsafe_allow_html=True)
-                    st.caption(message.get("time", ""))
-        
-        # Kullanıcı girişi
-        prompt = st.chat_input("Mesajınızı yazın...", key="chat_input_tab")
-        if prompt:
-            # Mesaj gönderme işlemi burada olacak
-            st.info(f"Mesaj gönderildi: {prompt}")
-        
-    elif st.session_state.current_tab == "📚 Oturumlar":
-        # Oturumlar arayüzü
-        st.markdown("## 📚 Oturumlar")
-        st.info("Oturumlar arayüzü burada olacak")
-        
-    elif st.session_state.current_tab == "🖼️ Resim Analizi":
-        show_image_analysis_interface()
+    # Ana chat arayüzü zaten yukarıda tanımlandı

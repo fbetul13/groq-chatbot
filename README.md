@@ -20,33 +20,75 @@ Bu proje, Groq API kullanarak ChatGPT benzeri bir chatbot uygulamasıdır. Backe
 - **🌍 Çoklu Dil Desteği**: 100+ dilde otomatik dil algılama ve yanıt
 - **🔍 Kalite Kontrolü**: Yanıt kalitesini kontrol etme
 - **📱 Responsive Tasarım**: Mobil ve masaüstü uyumlu
+- **🖼️ Resim Analizi**: AI destekli resim analizi ve açıklama
+- **🗑️ Hesap Silme**: Kullanıcıların kendi hesaplarını kalıcı olarak silme
+- **🐳 Docker Desteği**: Kapsamlı Docker kurulumu (PostgreSQL, Redis, Nginx, Monitoring)
+- **📊 Monitoring**: Prometheus ve Grafana ile sistem izleme
+- **🔒 Güvenlik**: Nginx reverse proxy, rate limiting, SSL desteği
+- **🗄️ Veritabanı**: PostgreSQL ve Redis cache desteği
 
 ## 📋 Gereksinimler
 
+### Docker Kurulumu için:
+- Docker ve Docker Compose
+- Groq API hesabı ve API anahtarı
+- Modern web tarayıcısı
+
+### Manuel Kurulum için:
 - Python 3.8+
 - Groq API hesabı ve API anahtarı
 - Modern web tarayıcısı
 
 ## 🛠️ Kurulum
 
-### 1. Projeyi klonlayın
+### 🐳 Docker ile Kolay Kurulum (Önerilen)
+
+**Tek komutla kurulum:**
+```bash
+# Projeyi klonlayın
+git clone <repository-url>
+cd chatbot
+
+# Docker kurulum scriptini çalıştırın
+./setup.sh
+```
+
+**Manuel Docker kurulumu:**
+```bash
+# 1. Environment dosyası oluşturun
+cp env_example.txt .env
+
+# 2. .env dosyasını düzenleyin (API anahtarlarınızı ekleyin)
+nano .env
+
+# 3. Docker servislerini başlatın
+docker-compose up -d
+
+# 4. Uygulamayı açın
+# Frontend: http://localhost:8501
+# Backend: http://localhost:5002
+```
+
+### 🔧 Manuel Kurulum
+
+#### 1. Projeyi klonlayın
 ```bash
 git clone <repository-url>
 cd chatbot
 ```
 
-### 2. Cursor/VSCode ayarları (opsiyonel)
+#### 2. Cursor/VSCode ayarları (opsiyonel)
 Proje `.vscode/settings.json` dosyası ile panel boyutları otomatik ayarlanır:
 - Sağ panel geniş olarak açılır (800px)
 - Sidebar sol tarafta kalır (300px)
 - Panel maksimize edilmiş olarak başlar
 
-### 3. Python bağımlılıklarını yükleyin
+#### 3. Python bağımlılıklarını yükleyin
 ```bash
 pip3 install -r requirements.txt
 ```
 
-### 3. Environment variables ayarlayın
+#### 4. Environment variables ayarlayın
 ```bash
 # .env dosyası oluşturun
 cp env_example.txt .env
@@ -58,21 +100,43 @@ GROQ_API_KEY=your_actual_groq_api_key_here
 SECRET_KEY=your_secret_key_here_or_leave_empty_for_auto_generation
 ```
 
-### 4. Backend'i başlatın
+#### 5. Backend'i başlatın
 ```bash
 cd backend
 python3 app.py
 ```
 
-Backend `http://localhost:5050` adresinde çalışacaktır.
+Backend `http://localhost:5002` adresinde çalışacaktır.
 
-### 5. Streamlit Frontend'i başlatın
+#### 6. Streamlit Frontend'i başlatın
 ```bash
 cd frontend
 streamlit run streamlit_app.py
 ```
 
 Streamlit uygulaması `http://localhost:8501` adresinde açılacaktır.
+
+### 🐳 Docker Yönetim Komutları
+
+```bash
+# Servisleri başlat
+docker-compose up -d
+
+# Servisleri durdur
+docker-compose down
+
+# Logları görüntüle
+docker-compose logs -f
+
+# Servisleri yeniden başlat
+docker-compose restart
+
+# Servisleri güncelle
+docker-compose pull && docker-compose up -d
+
+# Verileri temizle (dikkatli kullanın!)
+docker-compose down -v
+```
 
 ## 🚀 Render Deployment
 

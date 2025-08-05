@@ -1,36 +1,199 @@
 version: '3.8'
 
 services:
+  # PostgreSQL Database
+  database:
+    image: postgres:15-alpine
+    container_name: chatbot-database
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-chatbot}
+      POSTGRES_USER: ${POSTGRES_USER:-chatbot_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-chatbot_pass}
+      POSTGRES_INITDB_ARGS: "--encoding=UTF-8 --lc-collate=C --lc-ctype=C"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./database/init:/docker-entrypoint-initdb.d
+    ports:
+      - "5432:5432"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-chatbot_user} -d ${POSTGRES_DB:-chatbot}"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    networks:
+      - chatbot-network
+
+  # Redis Cache
+  redis:
+    image: redis:7-alpine
+    container_name: chatbot-redis
+    command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD:-redis_pass}
+    volumes:
+      - redis_data:/data
+    ports:
+      - "6379:6379"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "--raw", "incr", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    networks:
+      - chatbot-network
+
+  # Backend API
   backend:
-    build: .
+    build: 
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: chatbot-backend
     ports:
       - "5002:5002"
     environment:
       - GROQ_API_KEY=${GROQ_API_KEY}
-      - SECRET_KEY=${SECRET_KEY}
+      - SECRET_KEY=${SECRET_KEY:-your-secret-key-here}
       - PORT=5002
-   # volumes:
-   #   - ./backend:/app/backend
-   #   - chatbot_data:/app/data
-    command: python backend/app.py
+      - FLASK_ENV=production
+      - DATABASE_URL=postgresql://${POSTGRES_USER:-chatbot_user}:${POSTGRES_PASSWORD:-chatbot_pass}@database:5432/${POSTGRES_DB:-chatbot}
+      - REDIS_URL=redis://:${REDIS_PASSWORD:-redis_pass}@redis:6379/0
+    volumes:
+      - backend_data:/app/data
+      - backend_logs:/app/logs
+      - backend_uploads:/app/uploads
+    restart: unless-stopped
+    depends_on:
+      database:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:5002/api/health"]
       interval: 30s
       timeout: 10s
       retries: 3
+      start_period: 40s
+    networks:
+      - chatbot-network
 
+  # Frontend Web Interface
   frontend:
-    build: .
+    build: 
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: chatbot-frontend
     ports:
       - "8501:8501"
     environment:
       - BACKEND_API_URL=http://backend:5002/api
       - PORT=8501
-   # volumes:
-   #   - ./frontend:/app/frontend
-    command: streamlit run frontend/streamlit_app.py --server.port 8501 --server.address 0.0.0.0
+    volumes:
+      - frontend_data:/app/data
+    restart: unless-stopped
     depends_on:
-      - backend
+      backend:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8501/_stcore/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    networks:
+      - chatbot-network
 
-#volumes:
-#  chatbot_data: 
+  # Nginx Reverse Proxy
+  nginx:
+    image: nginx:alpine
+    container_name: chatbot-nginx
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf
+      - ./nginx/ssl:/etc/nginx/ssl
+      - nginx_logs:/var/log/nginx
+    restart: unless-stopped
+    depends_on:
+      - frontend
+      - backend
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    networks:
+      - chatbot-network
+
+  # Prometheus Monitoring
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: chatbot-prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml
+      - prometheus_data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/etc/prometheus/console_libraries'
+      - '--web.console.templates=/etc/prometheus/consoles'
+      - '--storage.tsdb.retention.time=200h'
+      - '--web.enable-lifecycle'
+    restart: unless-stopped
+    networks:
+      - chatbot-network
+
+  # Grafana Dashboard
+  grafana:
+    image: grafana/grafana:latest
+    container_name: chatbot-grafana
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_PASSWORD:-admin123}
+      - GF_USERS_ALLOW_SIGN_UP=false
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./monitoring/grafana/dashboards:/etc/grafana/provisioning/dashboards
+      - ./monitoring/grafana/datasources:/etc/grafana/provisioning/datasources
+    restart: unless-stopped
+    depends_on:
+      - prometheus
+    networks:
+      - chatbot-network
+
+volumes:
+  # Database volumes
+  postgres_data:
+    driver: local
+  redis_data:
+    driver: local
+  
+  # Application volumes
+  backend_data:
+    driver: local
+  backend_logs:
+    driver: local
+  backend_uploads:
+    driver: local
+  frontend_data:
+    driver: local
+  
+  # Nginx volumes
+  nginx_logs:
+    driver: local
+  
+  # Monitoring volumes
+  prometheus_data:
+    driver: local
+  grafana_data:
+    driver: local
+
+networks:
+  chatbot-network:
+    driver: bridge 
