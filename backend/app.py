@@ -1,5 +1,7 @@
 from flask import Flask, request, jsonify, session, send_file
 from flask_cors import CORS
+from flask_limiter import Limiter
+from flask_limiter.util import get_remote_address
 import os
 from dotenv import load_dotenv
 from groq import Groq
@@ -26,6 +28,15 @@ load_dotenv()
 
 app = Flask(__name__)
 app.secret_key = os.getenv('SECRET_KEY', secrets.token_hex(16))
+
+# Rate Limiter'ı başlat
+limiter = Limiter(
+    app=app,
+    key_func=get_remote_address,
+    default_limits=["200 per day", "50 per hour"],
+    storage_uri="memory://"
+)
+
 # Render'da CORS ayarlarını genişlet
 CORS(app, 
      supports_credentials=True,
@@ -54,10 +65,17 @@ def init_db():
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             username TEXT UNIQUE NOT NULL,
             password_hash TEXT NOT NULL,
+            is_admin BOOLEAN DEFAULT 0,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             last_login TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
     ''')
+    
+    # Admin sütunu yoksa ekle (geriye uyumluluk için)
+    try:
+        cursor.execute('ALTER TABLE users ADD COLUMN is_admin BOOLEAN DEFAULT 0')
+    except sqlite3.OperationalError:
+        pass  # Sütun zaten varsa hata verme
     
     # Sohbet oturumları tablosu (kullanıcı ID'si eklendi)
     cursor.execute('''
@@ -328,7 +346,26 @@ def require_auth(f):
     decorated_function.__name__ = f.__name__
     return decorated_function
 
+def require_admin(f):
+    def decorated_function(*args, **kwargs):
+        if 'user_id' not in session:
+            return jsonify({'error': 'Authentication required'}), 401
+        
+        # Admin kontrolü
+        conn = sqlite3.connect('chatbot.db')
+        cursor = conn.cursor()
+        cursor.execute('SELECT is_admin FROM users WHERE id = ?', (session['user_id'],))
+        user = cursor.fetchone()
+        conn.close()
+        
+        if not user or not user[0]:
+            return jsonify({'error': 'Admin access required'}), 403
+        return f(*args, **kwargs)
+    decorated_function.__name__ = f.__name__
+    return decorated_function
+
 @app.route('/api/register', methods=['POST'])
+@limiter.limit("3 per minute")  # Dakikada 3 kayıt denemesi
 def register():
     """Kullanıcı kaydı"""
     try:
@@ -380,6 +417,7 @@ def register():
         return jsonify({'error': str(e)}), 500
 
 @app.route('/api/login', methods=['POST'])
+@limiter.limit("5 per minute")  # Dakikada 5 giriş denemesi
 def login():
     """Kullanıcı girişi"""
     try:
@@ -444,6 +482,7 @@ def get_user_info():
     })
 
 @app.route('/api/chat', methods=['POST'])
+@limiter.limit("10 per minute")  # Dakikada 10 istek
 @require_auth
 def chat():
     try:
@@ -2077,6 +2116,305 @@ def internal_error(error):
         'error': 'Internal server error',
         'message': 'An unexpected error occurred'
     }), 500
+
+@app.errorhandler(429)
+def ratelimit_handler(e):
+    """Handle rate limit errors"""
+    return jsonify({
+        'error': 'Rate limit exceeded',
+        'message': 'Çok fazla istek gönderdiniz. Lütfen birkaç dakika bekleyin.',
+        'retry_after': e.retry_after if hasattr(e, 'retry_after') else 60
+    }), 429
+
+# Admin Endpoint'leri
+@app.route('/api/admin/dashboard', methods=['GET'])
+@require_admin
+def admin_dashboard():
+    """Admin dashboard istatistikleri"""
+    try:
+        conn = sqlite3.connect('chatbot.db')
+        cursor = conn.cursor()
+        
+        # Toplam kullanıcı sayısı
+        cursor.execute('SELECT COUNT(*) FROM users')
+        total_users = cursor.fetchone()[0]
+        
+        # Bugün aktif kullanıcılar
+        cursor.execute('''
+            SELECT COUNT(DISTINCT user_id) FROM chat_sessions 
+            WHERE DATE(created_at) = DATE('now')
+        ''')
+        today_active_users = cursor.fetchone()[0]
+        
+        # Toplam mesaj sayısı
+        cursor.execute('SELECT COUNT(*) FROM messages')
+        total_messages = cursor.fetchone()[0]
+        
+        # Bugün gönderilen mesajlar
+        cursor.execute('''
+            SELECT COUNT(*) FROM messages 
+            WHERE DATE(timestamp) = DATE('now')
+        ''')
+        today_messages = cursor.fetchone()[0]
+        
+        # Toplam oturum sayısı
+        cursor.execute('SELECT COUNT(*) FROM chat_sessions')
+        total_sessions = cursor.fetchone()[0]
+        
+        # En popüler AI modelleri
+        cursor.execute('''
+            SELECT model, COUNT(*) as count 
+            FROM messages 
+            WHERE model IS NOT NULL 
+            GROUP BY model 
+            ORDER BY count DESC 
+            LIMIT 5
+        ''')
+        popular_models = [{'model': row[0], 'count': row[1]} for row in cursor.fetchall()]
+        
+        # Son 7 günlük aktivite
+        cursor.execute('''
+            SELECT DATE(timestamp) as date, COUNT(*) as count 
+            FROM messages 
+            WHERE timestamp >= DATE('now', '-7 days')
+            GROUP BY DATE(timestamp)
+            ORDER BY date
+        ''')
+        weekly_activity = [{'date': row[0], 'count': row[1]} for row in cursor.fetchall()]
+        
+        conn.close()
+        
+        return jsonify({
+            'total_users': total_users,
+            'today_active_users': today_active_users,
+            'total_messages': total_messages,
+            'today_messages': today_messages,
+            'total_sessions': total_sessions,
+            'popular_models': popular_models,
+            'weekly_activity': weekly_activity
+        })
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/admin/users', methods=['GET'])
+@require_admin
+def admin_users():
+    """Tüm kullanıcıları listele"""
+    try:
+        conn = sqlite3.connect('chatbot.db')
+        cursor = conn.cursor()
+        
+        cursor.execute('''
+            SELECT id, username, is_admin, created_at, last_login,
+                   (SELECT COUNT(*) FROM chat_sessions WHERE user_id = users.id) as session_count,
+                   (SELECT COUNT(*) FROM messages WHERE session_id IN 
+                    (SELECT session_id FROM chat_sessions WHERE user_id = users.id)) as message_count
+            FROM users 
+            ORDER BY created_at DESC
+        ''')
+        
+        users = []
+        for row in cursor.fetchall():
+            users.append({
+                'id': row[0],
+                'username': row[1],
+                'is_admin': bool(row[2]),
+                'created_at': row[3],
+                'last_login': row[4],
+                'session_count': row[5],
+                'message_count': row[6]
+            })
+        
+        conn.close()
+        return jsonify({'users': users})
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/admin/users/<int:user_id>', methods=['GET'])
+@require_admin
+def admin_user_detail(user_id):
+    """Kullanıcı detaylarını getir"""
+    try:
+        conn = sqlite3.connect('chatbot.db')
+        cursor = conn.cursor()
+        
+        # Kullanıcı bilgileri
+        cursor.execute('''
+            SELECT id, username, is_admin, created_at, last_login
+            FROM users WHERE id = ?
+        ''', (user_id,))
+        user = cursor.fetchone()
+        
+        if not user:
+            conn.close()
+            return jsonify({'error': 'User not found'}), 404
+        
+        # Kullanıcının oturumları
+        cursor.execute('''
+            SELECT session_id, session_name, created_at, updated_at
+            FROM chat_sessions 
+            WHERE user_id = ? 
+            ORDER BY updated_at DESC
+        ''', (user_id,))
+        sessions = [{'session_id': row[0], 'session_name': row[1], 
+                    'created_at': row[2], 'updated_at': row[3]} 
+                   for row in cursor.fetchall()]
+        
+        # Kullanıcının mesaj istatistikleri
+        cursor.execute('''
+            SELECT COUNT(*) as total_messages,
+                   COUNT(DISTINCT DATE(timestamp)) as active_days,
+                   MIN(timestamp) as first_message,
+                   MAX(timestamp) as last_message
+            FROM messages 
+            WHERE session_id IN (SELECT session_id FROM chat_sessions WHERE user_id = ?)
+        ''', (user_id,))
+        stats = cursor.fetchone()
+        
+        conn.close()
+        
+        return jsonify({
+            'user': {
+                'id': user[0],
+                'username': user[1],
+                'is_admin': bool(user[2]),
+                'created_at': user[3],
+                'last_login': user[4]
+            },
+            'sessions': sessions,
+            'stats': {
+                'total_messages': stats[0],
+                'active_days': stats[1],
+                'first_message': stats[2],
+                'last_message': stats[3]
+            }
+        })
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/admin/users/<int:user_id>/toggle-admin', methods=['POST'])
+@require_admin
+def admin_toggle_user_admin(user_id):
+    """Kullanıcının admin durumunu değiştir"""
+    try:
+        conn = sqlite3.connect('chatbot.db')
+        cursor = conn.cursor()
+        
+        # Mevcut admin durumunu kontrol et
+        cursor.execute('SELECT is_admin FROM users WHERE id = ?', (user_id,))
+        user = cursor.fetchone()
+        
+        if not user:
+            conn.close()
+            return jsonify({'error': 'User not found'}), 404
+        
+        # Kendini admin'den çıkarma
+        if user_id == session.get('user_id'):
+            conn.close()
+            return jsonify({'error': 'Cannot remove yourself from admin'}), 400
+        
+        # Admin durumunu değiştir
+        new_admin_status = not user[0]
+        cursor.execute('UPDATE users SET is_admin = ? WHERE id = ?', (new_admin_status, user_id))
+        conn.commit()
+        conn.close()
+        
+        return jsonify({
+            'message': f'User admin status updated to {new_admin_status}',
+            'is_admin': new_admin_status
+        })
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/admin/users/<int:user_id>/delete', methods=['DELETE'])
+@require_admin
+def admin_delete_user(user_id):
+    """Kullanıcıyı sil"""
+    try:
+        conn = sqlite3.connect('chatbot.db')
+        cursor = conn.cursor()
+        
+        # Kendini silme
+        if user_id == session.get('user_id'):
+            conn.close()
+            return jsonify({'error': 'Cannot delete yourself'}), 400
+        
+        # Kullanıcının var olup olmadığını kontrol et
+        cursor.execute('SELECT username FROM users WHERE id = ?', (user_id,))
+        user = cursor.fetchone()
+        
+        if not user:
+            conn.close()
+            return jsonify({'error': 'User not found'}), 404
+        
+        # Kullanıcının oturumlarını sil
+        cursor.execute('DELETE FROM chat_sessions WHERE user_id = ?', (user_id,))
+        
+        # Kullanıcıyı sil
+        cursor.execute('DELETE FROM users WHERE id = ?', (user_id,))
+        
+        conn.commit()
+        conn.close()
+        
+        return jsonify({'message': f'User {user[0]} deleted successfully'})
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/admin/system-stats', methods=['GET'])
+@require_admin
+def admin_system_stats():
+    """Sistem performans istatistikleri"""
+    try:
+        conn = sqlite3.connect('chatbot.db')
+        cursor = conn.cursor()
+        
+        # Veritabanı boyutu
+        cursor.execute('PRAGMA page_count')
+        page_count = cursor.fetchone()[0]
+        cursor.execute('PRAGMA page_size')
+        page_size = cursor.fetchone()[0]
+        db_size_mb = (page_count * page_size) / (1024 * 1024)
+        
+        # En aktif kullanıcılar
+        cursor.execute('''
+            SELECT u.username, COUNT(m.id) as message_count
+            FROM users u
+            JOIN chat_sessions cs ON u.id = cs.user_id
+            JOIN messages m ON cs.session_id = m.session_id
+            WHERE m.timestamp >= DATE('now', '-7 days')
+            GROUP BY u.id, u.username
+            ORDER BY message_count DESC
+            LIMIT 10
+        ''')
+        top_users = [{'username': row[0], 'message_count': row[1]} for row in cursor.fetchall()]
+        
+        # Model kullanım istatistikleri
+        cursor.execute('''
+            SELECT model, COUNT(*) as count, 
+                   COUNT(*) * 100.0 / (SELECT COUNT(*) FROM messages WHERE model IS NOT NULL) as percentage
+            FROM messages 
+            WHERE model IS NOT NULL 
+            GROUP BY model 
+            ORDER BY count DESC
+        ''')
+        model_stats = [{'model': row[0], 'count': row[1], 'percentage': round(row[2], 2)} 
+                      for row in cursor.fetchall()]
+        
+        conn.close()
+        
+        return jsonify({
+            'database_size_mb': round(db_size_mb, 2),
+            'top_users': top_users,
+            'model_stats': model_stats
+        })
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5002))

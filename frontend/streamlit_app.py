@@ -764,6 +764,17 @@ def check_auth_status():
         st.session_state.username = None
         return False
 
+def check_admin_status():
+    """Kullanıcının admin durumunu kontrol et"""
+    try:
+        response = requests.get(f"{st.session_state.api_url}/admin/dashboard", timeout=5, cookies=st.session_state.get('cookies', {}))
+        if response.status_code == 200:
+            return True
+        else:
+            return False
+    except:
+        return False
+
 def login_user(username, password):
     """Kullanıcı girişi"""
     try:
@@ -1101,6 +1112,91 @@ def empty_trash():
             st.error("Çöp kutusu temizleme hatası")
     except Exception as e:
         st.error(f"Çöp kutusu temizleme hatası: {str(e)}")
+
+# Admin API Fonksiyonları
+def get_admin_dashboard():
+    """Admin dashboard verilerini getir"""
+    try:
+        response = requests.get(f"{st.session_state.api_url}/admin/dashboard", timeout=5, cookies=st.session_state.get('cookies', {}))
+        if response.status_code == 200:
+            return response.json()
+        else:
+            st.error("Dashboard verileri alınamadı")
+            return None
+    except Exception as e:
+        st.error(f"Dashboard hatası: {str(e)}")
+        return None
+
+def get_admin_users():
+    """Tüm kullanıcıları getir"""
+    try:
+        response = requests.get(f"{st.session_state.api_url}/admin/users", timeout=5, cookies=st.session_state.get('cookies', {}))
+        if response.status_code == 200:
+            return response.json()['users']
+        else:
+            st.error("Kullanıcı listesi alınamadı")
+            return []
+    except Exception as e:
+        st.error(f"Kullanıcı listesi hatası: {str(e)}")
+        return []
+
+def get_admin_user_detail(user_id):
+    """Kullanıcı detaylarını getir"""
+    try:
+        response = requests.get(f"{st.session_state.api_url}/admin/users/{user_id}", timeout=5, cookies=st.session_state.get('cookies', {}))
+        if response.status_code == 200:
+            return response.json()
+        else:
+            st.error("Kullanıcı detayları alınamadı")
+            return None
+    except Exception as e:
+        st.error(f"Kullanıcı detay hatası: {str(e)}")
+        return None
+
+def toggle_user_admin(user_id):
+    """Kullanıcının admin durumunu değiştir"""
+    try:
+        response = requests.post(f"{st.session_state.api_url}/admin/users/{user_id}/toggle-admin", timeout=5, cookies=st.session_state.get('cookies', {}))
+        if response.status_code == 200:
+            data = response.json()
+            st.success(f"Admin durumu güncellendi: {data['is_admin']}")
+            return True
+        else:
+            error_data = response.json()
+            st.error(f"Admin durumu güncellenemedi: {error_data.get('error', 'Bilinmeyen hata')}")
+            return False
+    except Exception as e:
+        st.error(f"Admin durumu güncelleme hatası: {str(e)}")
+        return False
+
+def delete_user(user_id):
+    """Kullanıcıyı sil"""
+    try:
+        response = requests.delete(f"{st.session_state.api_url}/admin/users/{user_id}/delete", timeout=5, cookies=st.session_state.get('cookies', {}))
+        if response.status_code == 200:
+            data = response.json()
+            st.success(f"Kullanıcı silindi: {data['message']}")
+            return True
+        else:
+            error_data = response.json()
+            st.error(f"Kullanıcı silinemedi: {error_data.get('error', 'Bilinmeyen hata')}")
+            return False
+    except Exception as e:
+        st.error(f"Kullanıcı silme hatası: {str(e)}")
+        return False
+
+def get_admin_system_stats():
+    """Sistem performans istatistiklerini getir"""
+    try:
+        response = requests.get(f"{st.session_state.api_url}/admin/system-stats", timeout=5, cookies=st.session_state.get('cookies', {}))
+        if response.status_code == 200:
+            return response.json()
+        else:
+            st.error("Sistem istatistikleri alınamadı")
+            return None
+    except Exception as e:
+        st.error(f"Sistem istatistikleri hatası: {str(e)}")
+        return None
 
 def search_messages(search_params):
     """Mesajlarda arama yap"""
@@ -1942,6 +2038,226 @@ def display_api_status_sidebar():
     except Exception as e:
         st.sidebar.error("❌ Bilinmeyen Hata")
         st.sidebar.caption(f"Hata: {str(e)[:50]}...")
+    
+    # Rate Limit Durumu
+    st.sidebar.markdown("---")
+    st.sidebar.markdown("## 🚦 Rate Limit Durumu")
+    
+    # Rate limit bilgileri
+    rate_limits = {
+        "Chat": "10/dakika",
+        "Giriş": "5/dakika", 
+        "Kayıt": "3/dakika",
+        "Genel": "200/gün, 50/saat"
+    }
+    
+    for endpoint, limit in rate_limits.items():
+        st.sidebar.info(f"📊 {endpoint}: {limit}")
+    
+    st.sidebar.caption("🚦 Rate limiting aktif - Güvenlik için")
+    
+    # Rate limit test butonu
+    if st.sidebar.button("🧪 Rate Limit Test", use_container_width=True):
+        st.session_state.test_rate_limit = True
+
+def test_rate_limits():
+    """Rate limit'leri test et"""
+    if not st.session_state.get('test_rate_limit', False):
+        return
+    
+    st.markdown("## 🧪 Rate Limit Test Sonuçları")
+    
+    # Test sonuçları
+    test_results = []
+    
+    # Chat endpoint testi
+    try:
+        for i in range(12):  # 10 limit + 2 fazla
+            response = requests.post(
+                f"{st.session_state.api_url}/chat",
+                json={"message": f"Test mesajı {i+1}"},
+                cookies=st.session_state.get('cookies', {}),
+                timeout=5
+            )
+            if response.status_code == 429:
+                test_results.append(f"✅ Chat Rate Limit: {i+1}. istekte engellendi")
+                break
+            elif i == 11:
+                test_results.append("❌ Chat Rate Limit çalışmıyor")
+    except Exception as e:
+        test_results.append(f"❌ Chat test hatası: {str(e)}")
+    
+    # Login endpoint testi
+    try:
+        for i in range(7):  # 5 limit + 2 fazla
+            response = requests.post(
+                f"{st.session_state.api_url}/login",
+                json={"username": f"test{i}", "password": "test123"},
+                timeout=5
+            )
+            if response.status_code == 429:
+                test_results.append(f"✅ Login Rate Limit: {i+1}. istekte engellendi")
+                break
+            elif i == 6:
+                test_results.append("❌ Login Rate Limit çalışmıyor")
+    except Exception as e:
+        test_results.append(f"❌ Login test hatası: {str(e)}")
+    
+    # Sonuçları göster
+    for result in test_results:
+        if "✅" in result:
+            st.success(result)
+        else:
+            st.error(result)
+    
+    # Test durumunu sıfırla
+    st.session_state.test_rate_limit = False
+
+# Admin Panel UI Fonksiyonları
+def show_admin_dashboard():
+    """Admin dashboard'ı göster"""
+    st.markdown("## 📊 Admin Dashboard")
+    
+    # Dashboard verilerini getir
+    dashboard_data = get_admin_dashboard()
+    if not dashboard_data:
+        return
+    
+    # Ana metrikler
+    col1, col2, col3, col4 = st.columns(4)
+    
+    with col1:
+        st.metric("👥 Toplam Kullanıcı", dashboard_data['total_users'])
+        st.metric("📅 Bugün Aktif", dashboard_data['today_active_users'])
+    
+    with col2:
+        st.metric("💬 Toplam Mesaj", dashboard_data['total_messages'])
+        st.metric("📝 Bugün Mesaj", dashboard_data['today_messages'])
+    
+    with col3:
+        st.metric("💻 Toplam Oturum", dashboard_data['total_sessions'])
+    
+    with col4:
+        # Veritabanı boyutu (sistem stats'den al)
+        system_stats = get_admin_system_stats()
+        if system_stats:
+            st.metric("💾 Veritabanı Boyutu", f"{system_stats['database_size_mb']} MB")
+    
+    # Popüler modeller
+    st.markdown("### 🤖 En Popüler AI Modelleri")
+    if dashboard_data['popular_models']:
+        model_df = pd.DataFrame(dashboard_data['popular_models'])
+        st.bar_chart(model_df.set_index('model')['count'])
+    else:
+        st.info("Henüz model kullanım verisi yok")
+    
+    # Haftalık aktivite
+    st.markdown("### 📈 Son 7 Günlük Aktivite")
+    if dashboard_data['weekly_activity']:
+        activity_df = pd.DataFrame(dashboard_data['weekly_activity'])
+        activity_df['date'] = pd.to_datetime(activity_df['date'])
+        st.line_chart(activity_df.set_index('date')['count'])
+    else:
+        st.info("Henüz aktivite verisi yok")
+
+def show_admin_users():
+    """Admin kullanıcı yönetimi"""
+    st.markdown("## 👥 Kullanıcı Yönetimi")
+    
+    # Kullanıcıları getir
+    users = get_admin_users()
+    if not users:
+        return
+    
+    # Kullanıcı listesi
+    for user in users:
+        with st.expander(f"👤 {user['username']} {'👑' if user['is_admin'] else ''}", expanded=False):
+            col1, col2, col3 = st.columns([2, 1, 1])
+            
+            with col1:
+                st.markdown(f"**ID:** {user['id']}")
+                st.markdown(f"**Kayıt Tarihi:** {user['created_at']}")
+                st.markdown(f"**Son Giriş:** {user['last_login']}")
+                st.markdown(f"**Oturum Sayısı:** {user['session_count']}")
+                st.markdown(f"**Mesaj Sayısı:** {user['message_count']}")
+            
+            with col2:
+                if user['is_admin']:
+                    st.success("👑 Admin")
+                else:
+                    st.info("👤 Kullanıcı")
+                
+                # Admin durumu değiştir
+                if user['id'] != st.session_state.user_id:  # Kendini değiştirme
+                    if st.button(f"{'👤 Kullanıcı Yap' if user['is_admin'] else '👑 Admin Yap'}", key=f"admin_{user['id']}"):
+                        if toggle_user_admin(user['id']):
+                            st.rerun()
+            
+            with col3:
+                # Kullanıcı detayları
+                if st.button("📊 Detaylar", key=f"detail_{user['id']}"):
+                    user_detail = get_admin_user_detail(user['id'])
+                    if user_detail:
+                        st.markdown("### 📊 Kullanıcı Detayları")
+                        st.json(user_detail)
+                
+                # Kullanıcı sil
+                if user['id'] != st.session_state.user_id:  # Kendini silme
+                    if st.button("🗑️ Sil", key=f"delete_{user['id']}"):
+                        if delete_user(user['id']):
+                            st.rerun()
+
+def show_admin_system():
+    """Admin sistem istatistikleri"""
+    st.markdown("## ⚙️ Sistem İstatistikleri")
+    
+    # Sistem stats'ini getir
+    system_stats = get_admin_system_stats()
+    if not system_stats:
+        return
+    
+    # Veritabanı boyutu
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        st.metric("💾 Veritabanı Boyutu", f"{system_stats['database_size_mb']} MB")
+    
+    # En aktif kullanıcılar
+    st.markdown("### 🏆 En Aktif Kullanıcılar (Son 7 Gün)")
+    if system_stats['top_users']:
+        top_users_df = pd.DataFrame(system_stats['top_users'])
+        st.bar_chart(top_users_df.set_index('username')['message_count'])
+    else:
+        st.info("Henüz kullanıcı aktivite verisi yok")
+    
+    # Model istatistikleri
+    st.markdown("### 🤖 Model Kullanım İstatistikleri")
+    if system_stats['model_stats']:
+        model_stats_df = pd.DataFrame(system_stats['model_stats'])
+        st.dataframe(model_stats_df, use_container_width=True)
+    else:
+        st.info("Henüz model istatistik verisi yok")
+
+def show_admin_panel():
+    """Ana admin paneli"""
+    st.markdown("## 🔐 Admin Paneli")
+    
+    # Admin kontrolü
+    if not check_admin_status():
+        st.error("❌ Admin yetkiniz yok!")
+        return
+    
+    # Admin sekmeleri
+    admin_tab1, admin_tab2, admin_tab3 = st.tabs(["📊 Dashboard", "👥 Kullanıcılar", "⚙️ Sistem"])
+    
+    with admin_tab1:
+        show_admin_dashboard()
+    
+    with admin_tab2:
+        show_admin_users()
+    
+    with admin_tab3:
+        show_admin_system()
 
 def handle_api_error(error_type, error_message, response=None):
     """API hatalarını kullanıcı dostu şekilde göster"""
@@ -2210,8 +2526,20 @@ else:
     st.markdown(f"""
     <div class="user-info">
         👤 <strong>{st.session_state.username}</strong> olarak giriş yaptınız
+        {' 👑' if check_admin_status() else ''}
     </div>
     """, unsafe_allow_html=True)
+    
+    # Admin paneli butonu
+    if check_admin_status():
+        if st.button("🔐 Admin Paneli", use_container_width=True):
+            st.session_state.show_admin_panel = not st.session_state.get('show_admin_panel', False)
+            st.rerun()
+        
+        # Admin paneli göster
+        if st.session_state.get('show_admin_panel', False):
+            show_admin_panel()
+            st.stop()
     
     # Sidebar
     with st.sidebar:
@@ -3418,6 +3746,9 @@ else:
         # Bot yanıtı alındıktan sonra sayfayı yenile ki düzenleme butonları çıksın
         st.rerun()
 
+    # Rate limit test fonksiyonunu çağır
+    test_rate_limits()
+    
     # Alt bilgi
     st.markdown("---")
     col1, col2, col3 = st.columns(3)
