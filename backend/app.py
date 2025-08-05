@@ -2694,39 +2694,156 @@ def admin_toggle_user_admin(user_id):
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
-@app.route('/api/admin/users/<int:user_id>/delete', methods=['DELETE'])
-@require_admin
-def admin_delete_user(user_id):
-    """Kullanıcıyı sil"""
+@app.route('/api/account/delete', methods=['DELETE'])
+@require_auth
+@limiter.limit("3 per hour")  # Saatte 3 hesap silme denemesi
+def delete_own_account():
+    """Kullanıcının kendi hesabını kalıcı olarak silmesi"""
     try:
+        user_id = session['user_id']
+        username = session.get('username', 'unknown')
+        
+        logger.info(f"Account deletion request: user_id={user_id}, username={username} - IP: {request.remote_addr}")
+        
+        data = request.get_json()
+        password = data.get('password', '')
+        confirmation = data.get('confirmation', '')
+        
+        if not password:
+            logger.warning(f"Account deletion failed - missing password: user_id={user_id}, username={username} - IP: {request.remote_addr}")
+            return jsonify({'error': 'Şifre gerekli'}), 400
+        
+        if confirmation != 'HESABIMI SİL':
+            logger.warning(f"Account deletion failed - wrong confirmation: user_id={user_id}, username={username} - IP: {request.remote_addr}")
+            return jsonify({'error': 'Onay metni yanlış. Lütfen "HESABIMI SİL" yazın.'}), 400
+        
         conn = sqlite3.connect('chatbot.db')
         cursor = conn.cursor()
         
-        # Kendini silme
-        if user_id == session.get('user_id'):
-            conn.close()
-            return jsonify({'error': 'Cannot delete yourself'}), 400
-        
-        # Kullanıcının var olup olmadığını kontrol et
-        cursor.execute('SELECT username FROM users WHERE id = ?', (user_id,))
+        # Şifreyi doğrula
+        password_hash = hash_password(password)
+        cursor.execute(
+            'SELECT id FROM users WHERE id = ? AND password_hash = ?',
+            (user_id, password_hash)
+        )
         user = cursor.fetchone()
         
         if not user:
             conn.close()
-            return jsonify({'error': 'User not found'}), 404
+            logger.warning(f"Account deletion failed - wrong password: user_id={user_id}, username={username} - IP: {request.remote_addr}")
+            return jsonify({'error': 'Şifre yanlış'}), 401
         
-        # Kullanıcının oturumlarını sil
+        # Kullanıcının tüm verilerini sil
+        # 1. Şifre sıfırlama token'larını sil
+        cursor.execute('DELETE FROM password_reset_tokens WHERE user_id = ?', (user_id,))
+        
+        # 2. Silinen mesajları sil
+        cursor.execute('''
+            DELETE FROM deleted_messages 
+            WHERE session_id IN (
+                SELECT session_id FROM deleted_chat_sessions WHERE user_id = ?
+            )
+        ''', (user_id,))
+        
+        # 3. Silinen oturumları sil
+        cursor.execute('DELETE FROM deleted_chat_sessions WHERE user_id = ?', (user_id,))
+        
+        # 4. Mesajları sil
+        cursor.execute('DELETE FROM messages WHERE session_id IN (SELECT session_id FROM chat_sessions WHERE user_id = ?)', (user_id,))
+        
+        # 5. Oturumları sil
         cursor.execute('DELETE FROM chat_sessions WHERE user_id = ?', (user_id,))
         
-        # Kullanıcıyı sil
+        # 6. Kullanıcıyı sil
         cursor.execute('DELETE FROM users WHERE id = ?', (user_id,))
         
         conn.commit()
         conn.close()
         
-        return jsonify({'message': f'User {user[0]} deleted successfully'})
+        # Session'ı temizle
+        session.clear()
+        
+        logger.info(f"Account deleted successfully: user_id={user_id}, username={username} - IP: {request.remote_addr}")
+        
+        return jsonify({
+            'message': 'Hesabınız başarıyla silindi. Tüm verileriniz kalıcı olarak kaldırıldı.',
+            'deleted': True
+        })
         
     except Exception as e:
+        logger.error(f"Account deletion error: {str(e)} - user_id={user_id}, username={username} - IP: {request.remote_addr} - Traceback: {traceback.format_exc()}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/admin/users/<int:user_id>/delete', methods=['DELETE'])
+@require_admin
+def admin_delete_user(user_id):
+    """Admin tarafından kullanıcıyı sil"""
+    try:
+        admin_user_id = session.get('user_id')
+        admin_username = session.get('username', 'unknown')
+        
+        logger.info(f"Admin user deletion: admin_id={admin_user_id}, admin_username={admin_username}, target_user_id={user_id} - IP: {request.remote_addr}")
+        
+        conn = sqlite3.connect('chatbot.db')
+        cursor = conn.cursor()
+        
+        # Kendini silme
+        if user_id == admin_user_id:
+            conn.close()
+            logger.warning(f"Admin tried to delete themselves: admin_id={admin_user_id}, admin_username={admin_username} - IP: {request.remote_addr}")
+            return jsonify({'error': 'Kendinizi silemezsiniz'}), 400
+        
+        # Kullanıcının var olup olmadığını kontrol et
+        cursor.execute('SELECT username, is_admin FROM users WHERE id = ?', (user_id,))
+        user = cursor.fetchone()
+        
+        if not user:
+            conn.close()
+            return jsonify({'error': 'Kullanıcı bulunamadı'}), 404
+        
+        username, is_admin = user
+        
+        # Admin kullanıcıyı silme uyarısı
+        if is_admin:
+            logger.warning(f"Admin user deletion attempted: target_user_id={user_id}, target_username={username}, admin_id={admin_user_id}, admin_username={admin_username} - IP: {request.remote_addr}")
+        
+        # Kullanıcının tüm verilerini sil
+        # 1. Şifre sıfırlama token'larını sil
+        cursor.execute('DELETE FROM password_reset_tokens WHERE user_id = ?', (user_id,))
+        
+        # 2. Silinen mesajları sil
+        cursor.execute('''
+            DELETE FROM deleted_messages 
+            WHERE session_id IN (
+                SELECT session_id FROM deleted_chat_sessions WHERE user_id = ?
+            )
+        ''', (user_id,))
+        
+        # 3. Silinen oturumları sil
+        cursor.execute('DELETE FROM deleted_chat_sessions WHERE user_id = ?', (user_id,))
+        
+        # 4. Mesajları sil
+        cursor.execute('DELETE FROM messages WHERE session_id IN (SELECT session_id FROM chat_sessions WHERE user_id = ?)', (user_id,))
+        
+        # 5. Oturumları sil
+        cursor.execute('DELETE FROM chat_sessions WHERE user_id = ?', (user_id,))
+        
+        # 6. Kullanıcıyı sil
+        cursor.execute('DELETE FROM users WHERE id = ?', (user_id,))
+        
+        conn.commit()
+        conn.close()
+        
+        logger.info(f"User deleted by admin: target_user_id={user_id}, target_username={username}, admin_id={admin_user_id}, admin_username={admin_username} - IP: {request.remote_addr}")
+        
+        return jsonify({
+            'message': f'Kullanıcı {username} başarıyla silindi. Tüm verileri kalıcı olarak kaldırıldı.',
+            'deleted_user': username,
+            'deleted': True
+        })
+        
+    except Exception as e:
+        logger.error(f"Admin user deletion error: {str(e)} - admin_id={admin_user_id}, admin_username={admin_username}, target_user_id={user_id} - IP: {request.remote_addr} - Traceback: {traceback.format_exc()}")
         return jsonify({'error': str(e)}), 500
 
 @app.route('/api/admin/system-stats', methods=['GET'])

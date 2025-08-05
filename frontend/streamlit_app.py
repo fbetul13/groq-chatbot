@@ -905,6 +905,45 @@ def logout_user():
     except Exception as e:
         st.error(f"Bağlantı hatası: {str(e)}")
 
+def delete_own_account(password, confirmation):
+    """Kullanıcının kendi hesabını kalıcı olarak silmesi"""
+    try:
+        response = requests.delete(
+            f"{st.session_state.api_url}/account/delete",
+            json={
+                "password": password,
+                "confirmation": confirmation
+            },
+            timeout=10,
+            cookies=st.session_state.get('cookies', {})
+        )
+        
+        if response.status_code == 200:
+            data = response.json()
+            if data.get('deleted'):
+                # Session'ı temizle
+                st.session_state.user_id = None
+                st.session_state.username = None
+                st.session_state.messages = []
+                st.session_state.current_session_id = None
+                st.session_state.sessions = []
+                st.session_state.deleted_sessions = []
+                st.session_state.cookies = {}
+                
+                st.success("✅ Hesabınız başarıyla silindi!")
+                st.info("Tüm verileriniz kalıcı olarak kaldırıldı. Ana sayfaya yönlendiriliyorsunuz...")
+                time.sleep(3)
+                st.rerun()
+                return True
+        else:
+            error_data = response.json()
+            st.error(f"❌ {error_data.get('error', 'Hesap silme hatası')}")
+            return False
+            
+    except Exception as e:
+        st.error(f"❌ Bağlantı hatası: {str(e)}")
+        return False
+
 def load_sessions():
     """Kullanıcının sohbet oturumlarını yükle"""
     try:
@@ -1226,19 +1265,23 @@ def toggle_user_admin(user_id):
         return False
 
 def delete_user(user_id):
-    """Kullanıcıyı sil"""
+    """Admin tarafından kullanıcıyı sil"""
     try:
         response = requests.delete(f"{st.session_state.api_url}/admin/users/{user_id}/delete", timeout=5, cookies=st.session_state.get('cookies', {}))
         if response.status_code == 200:
             data = response.json()
-            st.success(f"Kullanıcı silindi: {data['message']}")
-            return True
+            if data.get('deleted'):
+                st.success(f"✅ {data['message']}")
+                return True
+            else:
+                st.error(f"❌ Kullanıcı silinemedi: {data.get('error', 'Bilinmeyen hata')}")
+                return False
         else:
             error_data = response.json()
-            st.error(f"Kullanıcı silinemedi: {error_data.get('error', 'Bilinmeyen hata')}")
+            st.error(f"❌ Kullanıcı silinemedi: {error_data.get('error', 'Bilinmeyen hata')}")
             return False
     except Exception as e:
-        st.error(f"Kullanıcı silme hatası: {str(e)}")
+        st.error(f"❌ Kullanıcı silme hatası: {str(e)}")
         return False
 
 def get_admin_system_stats():
@@ -3655,7 +3698,23 @@ else:
         # Sohbeti temizle
         if st.button("🗑️ Sohbeti Temizle", use_container_width=True):
             st.session_state.messages = []
-            st.rerun()
+            st.success("Sohbet geçmişi temizlendi!")
+
+        # HESAP SİLME BÖLÜMÜ (sidebar'ın en altı)
+        st.markdown('---')
+        st.markdown('## ❌ Hesabı Kalıcı Olarak Sil')
+        st.warning('Bu işlem geri alınamaz! Tüm sohbetleriniz, oturumlarınız ve hesabınız kalıcı olarak silinir.')
+        with st.expander('Hesabımı Silmek İstiyorum', expanded=False):
+            st.markdown('**Dikkat:** Hesabınızı silmek için şifrenizi girin ve aşağıdaki onay kutusunu doldurun.')
+            with st.form('delete_account_form'):
+                password = st.text_input('Şifreniz', type='password', key='delete_account_password')
+                confirmation = st.text_input('Onay Metni ("HESABIMI SİL" yazın)', key='delete_account_confirm')
+                submitted = st.form_submit_button('Hesabımı Kalıcı Olarak Sil', use_container_width=True)
+                if submitted:
+                    if password and confirmation:
+                        delete_own_account(password, confirmation)
+                    else:
+                        st.error('Şifre ve onay metni gerekli!')
         
         # API durumu ve token durumu
         display_api_status_sidebar()
