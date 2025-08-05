@@ -14,6 +14,9 @@ import secrets
 import csv
 import io
 import tiktoken
+import logging
+import traceback
+from logging.handlers import RotatingFileHandler
 from reportlab.lib.pagesizes import letter, A4
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, PageBreak
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
@@ -25,6 +28,45 @@ from web_research import WebResearch
 
 # .env dosyasını yükle
 load_dotenv()
+
+# Loglama sistemini kur
+def setup_logging():
+    """Loglama sistemini yapılandır"""
+    # Logs klasörünü oluştur
+    if not os.path.exists('logs'):
+        os.makedirs('logs')
+    
+    # Ana logger'ı yapılandır
+    logger = logging.getLogger('chatbot')
+    logger.setLevel(logging.INFO)
+    
+    # Dosya handler'ı (rotating file handler)
+    file_handler = RotatingFileHandler(
+        'logs/chatbot.log', 
+        maxBytes=10*1024*1024,  # 10MB
+        backupCount=5
+    )
+    file_handler.setLevel(logging.INFO)
+    
+    # Console handler'ı
+    console_handler = logging.StreamHandler()
+    console_handler.setLevel(logging.INFO)
+    
+    # Formatter
+    formatter = logging.Formatter(
+        '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+    )
+    file_handler.setFormatter(formatter)
+    console_handler.setFormatter(formatter)
+    
+    # Handler'ları ekle
+    logger.addHandler(file_handler)
+    logger.addHandler(console_handler)
+    
+    return logger
+
+# Loglama sistemini başlat
+logger = setup_logging()
 
 app = Flask(__name__)
 app.secret_key = os.getenv('SECRET_KEY', secrets.token_hex(16))
@@ -373,13 +415,18 @@ def register():
         username = data.get('username', '').strip()
         password = data.get('password', '')
         
+        logger.info(f"Registration attempt: username={username} - IP: {request.remote_addr}")
+        
         if not username or not password:
+            logger.warning(f"Registration failed - missing credentials: username={username} - IP: {request.remote_addr}")
             return jsonify({'error': 'Username and password are required'}), 400
         
         if len(username) < 3:
+            logger.warning(f"Registration failed - username too short: username={username} - IP: {request.remote_addr}")
             return jsonify({'error': 'Username must be at least 3 characters'}), 400
         
         if len(password) < 6:
+            logger.warning(f"Registration failed - password too short: username={username} - IP: {request.remote_addr}")
             return jsonify({'error': 'Password must be at least 6 characters'}), 400
         
         password_hash = hash_password(password)
@@ -403,6 +450,8 @@ def register():
             session['user_id'] = user_id
             session['username'] = username
             
+            logger.info(f"Registration successful: user_id={user_id}, username={username} - IP: {request.remote_addr}")
+            
             return jsonify({
                 'message': 'Registration successful',
                 'user_id': user_id,
@@ -411,9 +460,11 @@ def register():
             
         except sqlite3.IntegrityError:
             conn.close()
+            logger.warning(f"Registration failed - username already exists: username={username} - IP: {request.remote_addr}")
             return jsonify({'error': 'Username already exists'}), 409
             
     except Exception as e:
+        logger.error(f"Registration error: {str(e)} - IP: {request.remote_addr} - Traceback: {traceback.format_exc()}")
         return jsonify({'error': str(e)}), 500
 
 @app.route('/api/login', methods=['POST'])
@@ -425,7 +476,10 @@ def login():
         username = data.get('username', '').strip()
         password = data.get('password', '')
         
+        logger.info(f"Login attempt: username={username} - IP: {request.remote_addr}")
+        
         if not username or not password:
+            logger.warning(f"Login failed - missing credentials: username={username} - IP: {request.remote_addr}")
             return jsonify({'error': 'Username and password are required'}), 400
         
         password_hash = hash_password(password)
@@ -454,6 +508,8 @@ def login():
             session['user_id'] = user_id
             session['username'] = username
             
+            logger.info(f"Login successful: user_id={user_id}, username={username} - IP: {request.remote_addr}")
+            
             return jsonify({
                 'message': 'Login successful',
                 'user_id': user_id,
@@ -461,9 +517,11 @@ def login():
             })
         else:
             conn.close()
+            logger.warning(f"Login failed - invalid credentials: username={username} - IP: {request.remote_addr}")
             return jsonify({'error': 'Invalid username or password'}), 401
             
     except Exception as e:
+        logger.error(f"Login error: {str(e)} - IP: {request.remote_addr} - Traceback: {traceback.format_exc()}")
         return jsonify({'error': str(e)}), 500
 
 @app.route('/api/logout', methods=['POST'])
@@ -486,11 +544,13 @@ def get_user_info():
 @require_auth
 def chat():
     try:
-        print("DEBUG: Chat endpoint çağrıldı")
         data = request.get_json()
         user_message = data.get('message', '')
         session_id = data.get('session_id', None)
         user_id = session['user_id']
+        username = session.get('username', 'unknown')
+        
+        logger.info(f"Chat request: user_id={user_id}, username={username}, session_id={session_id}, message_length={len(user_message)} - IP: {request.remote_addr}")
         
         if not user_message:
             return jsonify({'error': 'Message is required'}), 400
@@ -1071,6 +1131,8 @@ Responda em português:]"""
         conn.commit()
         conn.close()
         
+        logger.info(f"Chat response successful: user_id={user_id}, username={username}, session_id={session_id}, model={model}, response_length={len(assistant_response)} - IP: {request.remote_addr}")
+        
         return jsonify({
             'response': assistant_response,
             'session_id': session_id,
@@ -1081,6 +1143,7 @@ Responda em português:]"""
         })
         
     except Exception as e:
+        logger.error(f"Chat error: {str(e)} - user_id={user_id}, username={username}, session_id={session_id} - IP: {request.remote_addr} - Traceback: {traceback.format_exc()}")
         return jsonify({'error': str(e)}), 500
 
 @app.route('/api/sessions', methods=['GET'])
@@ -2096,6 +2159,7 @@ def root():
 @app.errorhandler(404)
 def not_found(error):
     """Handle 404 errors"""
+    logger.warning(f"404 Not Found: {request.url} - IP: {request.remote_addr} - User-Agent: {request.headers.get('User-Agent', 'Unknown')}")
     return jsonify({
         'error': 'Endpoint not found',
         'message': 'The requested endpoint does not exist',
@@ -2112,6 +2176,8 @@ def not_found(error):
 @app.errorhandler(500)
 def internal_error(error):
     """Handle 500 errors"""
+    logger.error(f"500 Internal Server Error: {str(error)} - IP: {request.remote_addr} - URL: {request.url}")
+    logger.error(f"Traceback: {traceback.format_exc()}")
     return jsonify({
         'error': 'Internal server error',
         'message': 'An unexpected error occurred'
@@ -2120,6 +2186,7 @@ def internal_error(error):
 @app.errorhandler(429)
 def ratelimit_handler(e):
     """Handle rate limit errors"""
+    logger.warning(f"429 Rate Limit Exceeded: IP: {request.remote_addr} - URL: {request.url} - User-Agent: {request.headers.get('User-Agent', 'Unknown')}")
     return jsonify({
         'error': 'Rate limit exceeded',
         'message': 'Çok fazla istek gönderdiniz. Lütfen birkaç dakika bekleyin.',
@@ -2132,6 +2199,10 @@ def ratelimit_handler(e):
 def admin_dashboard():
     """Admin dashboard istatistikleri"""
     try:
+        user_id = session.get('user_id')
+        username = session.get('username', 'unknown')
+        logger.info(f"Admin dashboard accessed: user_id={user_id}, username={username} - IP: {request.remote_addr}")
+        
         conn = sqlite3.connect('chatbot.db')
         cursor = conn.cursor()
         
@@ -2370,6 +2441,10 @@ def admin_delete_user(user_id):
 def admin_system_stats():
     """Sistem performans istatistikleri"""
     try:
+        user_id = session.get('user_id')
+        username = session.get('username', 'unknown')
+        logger.info(f"Admin system stats accessed: user_id={user_id}, username={username} - IP: {request.remote_addr}")
+        
         conn = sqlite3.connect('chatbot.db')
         cursor = conn.cursor()
         
@@ -2414,6 +2489,42 @@ def admin_system_stats():
         })
         
     except Exception as e:
+        logger.error(f"Admin system stats error: {str(e)} - user_id={user_id}, username={username} - IP: {request.remote_addr}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/admin/logs', methods=['GET'])
+@require_admin
+def admin_logs():
+    """Sistem loglarını getir"""
+    try:
+        user_id = session.get('user_id')
+        username = session.get('username', 'unknown')
+        logger.info(f"Admin logs accessed: user_id={user_id}, username={username} - IP: {request.remote_addr}")
+        
+        # Log dosyasını oku
+        log_file_path = 'logs/chatbot.log'
+        if os.path.exists(log_file_path):
+            with open(log_file_path, 'r', encoding='utf-8') as f:
+                logs = f.readlines()
+            
+            # Son 1000 log satırını al
+            logs = logs[-1000:]
+            
+            return jsonify({
+                'logs': logs,
+                'total_lines': len(logs),
+                'file_size_mb': round(os.path.getsize(log_file_path) / (1024 * 1024), 2)
+            })
+        else:
+            return jsonify({
+                'logs': [],
+                'total_lines': 0,
+                'file_size_mb': 0,
+                'message': 'Log dosyası bulunamadı'
+            })
+            
+    except Exception as e:
+        logger.error(f"Admin logs error: {str(e)} - user_id={user_id}, username={username} - IP: {request.remote_addr}")
         return jsonify({'error': str(e)}), 500
 
 if __name__ == '__main__':

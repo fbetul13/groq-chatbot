@@ -2208,35 +2208,108 @@ def show_admin_users():
                             st.rerun()
 
 def show_admin_system():
-    """Admin sistem istatistikleri"""
-    st.markdown("## ⚙️ Sistem İstatistikleri")
+    """Sistem istatistikleri"""
+    try:
+        stats = get_admin_system_stats()
+        
+        st.markdown("### 📊 Sistem Performansı")
+        
+        # Veritabanı boyutu
+        col1, col2 = st.columns(2)
+        with col1:
+            st.metric("💾 Veritabanı Boyutu", f"{stats.get('database_size_mb', 0)} MB")
+        
+        # En aktif kullanıcılar
+        st.markdown("### 👥 En Aktif Kullanıcılar (Son 7 Gün)")
+        top_users = stats.get('top_users', [])
+        if top_users:
+            for i, user in enumerate(top_users[:5], 1):
+                st.markdown(f"**{i}.** {user['username']} - {user['message_count']} mesaj")
+        else:
+            st.info("Henüz aktif kullanıcı yok")
+        
+        # Model kullanım istatistikleri
+        st.markdown("### 🤖 Model Kullanım İstatistikleri")
+        model_stats = stats.get('model_stats', [])
+        if model_stats:
+            for model in model_stats:
+                col1, col2, col3 = st.columns(3)
+                with col1:
+                    st.metric("Model", model['model'])
+                with col2:
+                    st.metric("Kullanım", model['count'])
+                with col3:
+                    st.metric("Yüzde", f"{model['percentage']}%")
+        else:
+            st.info("Henüz model kullanım verisi yok")
+            
+    except Exception as e:
+        st.error(f"Sistem istatistikleri alınamadı: {str(e)}")
+
+def show_admin_logs():
+    """Admin log görüntüleme"""
+    st.markdown("### 📋 Sistem Logları")
     
-    # Sistem stats'ini getir
-    system_stats = get_admin_system_stats()
-    if not system_stats:
-        return
-    
-    # Veritabanı boyutu
-    col1, col2 = st.columns(2)
-    
-    with col1:
-        st.metric("💾 Veritabanı Boyutu", f"{system_stats['database_size_mb']} MB")
-    
-    # En aktif kullanıcılar
-    st.markdown("### 🏆 En Aktif Kullanıcılar (Son 7 Gün)")
-    if system_stats['top_users']:
-        top_users_df = pd.DataFrame(system_stats['top_users'])
-        st.bar_chart(top_users_df.set_index('username')['message_count'])
-    else:
-        st.info("Henüz kullanıcı aktivite verisi yok")
-    
-    # Model istatistikleri
-    st.markdown("### 🤖 Model Kullanım İstatistikleri")
-    if system_stats['model_stats']:
-        model_stats_df = pd.DataFrame(system_stats['model_stats'])
-        st.dataframe(model_stats_df, use_container_width=True)
-    else:
-        st.info("Henüz model istatistik verisi yok")
+    # Log dosyası yükleme
+    try:
+        response = requests.get(f"{st.session_state.api_url}/admin/logs", timeout=10, cookies=st.session_state.get('cookies', {}))
+        if response.status_code == 200:
+            logs_data = response.json()
+            logs = logs_data.get('logs', [])
+            
+            # Log filtreleme
+            col1, col2, col3 = st.columns(3)
+            with col1:
+                log_level = st.selectbox("Log Seviyesi", ["Tümü", "INFO", "WARNING", "ERROR"])
+            with col2:
+                search_term = st.text_input("Arama", placeholder="IP, kullanıcı adı, hata...")
+            with col3:
+                limit = st.selectbox("Gösterim Limiti", [50, 100, 200, 500])
+            
+            # Logları filtrele
+            filtered_logs = logs
+            if log_level != "Tümü":
+                filtered_logs = [log for log in filtered_logs if log_level in log]
+            if search_term:
+                filtered_logs = [log for log in filtered_logs if search_term.lower() in log.lower()]
+            
+            # Son N log
+            filtered_logs = filtered_logs[-limit:]
+            
+            # Logları göster
+            if filtered_logs:
+                st.markdown(f"**Toplam {len(filtered_logs)} log kaydı**")
+                
+                # Log indirme butonu
+                if st.button("📥 Logları İndir"):
+                    log_content = "\n".join(filtered_logs)
+                    st.download_button(
+                        label="💾 Log Dosyasını İndir",
+                        data=log_content,
+                        file_name=f"chatbot_logs_{datetime.now().strftime('%Y%m%d_%H%M%S')}.log",
+                        mime="text/plain"
+                    )
+                
+                # Logları tablo halinde göster
+                with st.expander("📋 Detaylı Log Görünümü", expanded=True):
+                    for i, log in enumerate(reversed(filtered_logs), 1):
+                        # Log seviyesine göre renk
+                        if "ERROR" in log:
+                            st.error(f"**{i}.** {log}")
+                        elif "WARNING" in log:
+                            st.warning(f"**{i}.** {log}")
+                        elif "INFO" in log:
+                            st.info(f"**{i}.** {log}")
+                        else:
+                            st.text(f"**{i}.** {log}")
+            else:
+                st.info("Filtre kriterlerine uygun log bulunamadı")
+                
+        else:
+            st.error("Loglar alınamadı")
+            
+    except Exception as e:
+        st.error(f"Log görüntüleme hatası: {str(e)}")
 
 def show_admin_panel():
     """Ana admin paneli"""
@@ -2248,7 +2321,7 @@ def show_admin_panel():
         return
     
     # Admin sekmeleri
-    admin_tab1, admin_tab2, admin_tab3 = st.tabs(["📊 Dashboard", "👥 Kullanıcılar", "⚙️ Sistem"])
+    admin_tab1, admin_tab2, admin_tab3, admin_tab4 = st.tabs(["📊 Dashboard", "👥 Kullanıcılar", "⚙️ Sistem", "📋 Loglar"])
     
     with admin_tab1:
         show_admin_dashboard()
@@ -2258,6 +2331,9 @@ def show_admin_panel():
     
     with admin_tab3:
         show_admin_system()
+        
+    with admin_tab4:
+        show_admin_logs()
 
 def handle_api_error(error_type, error_message, response=None):
     """API hatalarını kullanıcı dostu şekilde göster"""
