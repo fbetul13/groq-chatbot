@@ -25,6 +25,10 @@ from reportlab.lib.colors import black, blue, gray
 from reportlab.pdfbase import pdfmetrics
 from reportlab.pdfbase.ttfonts import TTFont
 from web_research import WebResearch
+import smtplib
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
+import string
 
 # .env dosyasını yükle
 load_dotenv()
@@ -107,6 +111,7 @@ def init_db():
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             username TEXT UNIQUE NOT NULL,
             password_hash TEXT NOT NULL,
+            email TEXT,
             is_admin BOOLEAN DEFAULT 0,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             last_login TIMESTAMP DEFAULT CURRENT_TIMESTAMP
@@ -118,6 +123,25 @@ def init_db():
         cursor.execute('ALTER TABLE users ADD COLUMN is_admin BOOLEAN DEFAULT 0')
     except sqlite3.OperationalError:
         pass  # Sütun zaten varsa hata verme
+    
+    # Email sütunu yoksa ekle (geriye uyumluluk için)
+    try:
+        cursor.execute('ALTER TABLE users ADD COLUMN email TEXT')
+    except sqlite3.OperationalError:
+        pass  # Sütun zaten varsa hata verme
+    
+    # Şifre sıfırlama token'ları tablosu
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS password_reset_tokens (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER,
+            token TEXT UNIQUE NOT NULL,
+            expires_at TIMESTAMP NOT NULL,
+            used BOOLEAN DEFAULT 0,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (user_id) REFERENCES users (id)
+        )
+    ''')
     
     # Sohbet oturumları tablosu (kullanıcı ID'si eklendi)
     cursor.execute('''
@@ -183,6 +207,85 @@ init_db()
 # Şifre hash fonksiyonu
 def hash_password(password):
     return hashlib.sha256(password.encode()).hexdigest()
+
+# Token oluşturma fonksiyonu
+def generate_reset_token():
+    """Şifre sıfırlama token'ı oluştur"""
+    return ''.join(secrets.choice(string.ascii_letters + string.digits) for _ in range(32))
+
+# Email gönderme fonksiyonu
+def send_reset_email(email, username, reset_token):
+    """Şifre sıfırlama email'i gönder"""
+    try:
+        # Email ayarları (örnek - gerçek uygulamada .env'den alınır)
+        smtp_server = os.getenv('SMTP_SERVER', 'smtp.gmail.com')
+        smtp_port = int(os.getenv('SMTP_PORT', '587'))
+        smtp_username = os.getenv('SMTP_USERNAME', 'your-email@gmail.com')
+        smtp_password = os.getenv('SMTP_PASSWORD', 'your-app-password')
+        
+        # Email içeriği
+        reset_url = f"http://localhost:8501/?token={reset_token}"
+        
+        subject = "🔐 Şifre Sıfırlama - AI Chatbot"
+        
+        html_content = f"""
+        <html>
+        <body style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+            <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 20px; border-radius: 10px; text-align: center;">
+                <h1>🤖 AI Chatbot</h1>
+                <h2>Şifre Sıfırlama</h2>
+            </div>
+            
+            <div style="background: #f9f9f9; padding: 20px; border-radius: 10px; margin-top: 20px;">
+                <p>Merhaba <strong>{username}</strong>,</p>
+                
+                <p>Şifrenizi sıfırlamak için aşağıdaki butona tıklayın:</p>
+                
+                <div style="text-align: center; margin: 30px 0;">
+                    <a href="{reset_url}" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 15px 30px; text-decoration: none; border-radius: 25px; display: inline-block; font-weight: bold;">
+                        🔐 Şifremi Sıfırla
+                    </a>
+                </div>
+                
+                <p><strong>Veya bu linki kopyalayın:</strong></p>
+                <p style="background: #e9ecef; padding: 10px; border-radius: 5px; word-break: break-all;">
+                    {reset_url}
+                </p>
+                
+                <p><strong>Bu link 1 saat sonra geçersiz olacaktır.</strong></p>
+                
+                <p>Eğer bu isteği siz yapmadıysanız, bu email'i görmezden gelebilirsiniz.</p>
+            </div>
+            
+            <div style="text-align: center; margin-top: 20px; color: #666; font-size: 12px;">
+                <p>Bu email AI Chatbot sistemi tarafından gönderilmiştir.</p>
+            </div>
+        </body>
+        </html>
+        """
+        
+        # Email oluştur
+        msg = MIMEMultipart('alternative')
+        msg['Subject'] = subject
+        msg['From'] = smtp_username
+        msg['To'] = email
+        
+        # HTML içeriği ekle
+        html_part = MIMEText(html_content, 'html')
+        msg.attach(html_part)
+        
+        # Email gönder
+        with smtplib.SMTP(smtp_server, smtp_port) as server:
+            server.starttls()
+            server.login(smtp_username, smtp_password)
+            server.send_message(msg)
+        
+        logger.info(f"Password reset email sent: email={email}, username={username}")
+        return True
+        
+    except Exception as e:
+        logger.error(f"Email sending error: {str(e)} - email={email}, username={username}")
+        return False
 
 # PDF oluşturma fonksiyonu
 def create_pdf_from_session(session_data, messages):
@@ -414,8 +517,9 @@ def register():
         data = request.get_json()
         username = data.get('username', '').strip()
         password = data.get('password', '')
+        email = data.get('email', '').strip().lower()
         
-        logger.info(f"Registration attempt: username={username} - IP: {request.remote_addr}")
+        logger.info(f"Registration attempt: username={username}, email={email} - IP: {request.remote_addr}")
         
         if not username or not password:
             logger.warning(f"Registration failed - missing credentials: username={username} - IP: {request.remote_addr}")
@@ -429,6 +533,11 @@ def register():
             logger.warning(f"Registration failed - password too short: username={username} - IP: {request.remote_addr}")
             return jsonify({'error': 'Password must be at least 6 characters'}), 400
         
+        # Email formatını kontrol et (opsiyonel)
+        if email and ('@' not in email or '.' not in email):
+            logger.warning(f"Registration failed - invalid email format: email={email} - IP: {request.remote_addr}")
+            return jsonify({'error': 'Geçerli bir email adresi girin'}), 400
+        
         password_hash = hash_password(password)
         
         conn = sqlite3.connect('chatbot.db')
@@ -436,8 +545,8 @@ def register():
         
         try:
             cursor.execute(
-                'INSERT INTO users (username, password_hash) VALUES (?, ?)',
-                (username, password_hash)
+                'INSERT INTO users (username, password_hash, email) VALUES (?, ?, ?)',
+                (username, password_hash, email)
             )
             conn.commit()
             
@@ -450,12 +559,13 @@ def register():
             session['user_id'] = user_id
             session['username'] = username
             
-            logger.info(f"Registration successful: user_id={user_id}, username={username} - IP: {request.remote_addr}")
+            logger.info(f"Registration successful: user_id={user_id}, username={username}, email={email} - IP: {request.remote_addr}")
             
             return jsonify({
                 'message': 'Registration successful',
                 'user_id': user_id,
-                'username': username
+                'username': username,
+                'email': email
             })
             
         except sqlite3.IntegrityError:
@@ -529,6 +639,189 @@ def logout():
     """Kullanıcı çıkışı"""
     session.clear()
     return jsonify({'message': 'Logout successful'})
+
+@app.route('/api/forgot-password', methods=['POST'])
+@limiter.limit("3 per hour")  # Saatte 3 şifre sıfırlama isteği
+def forgot_password():
+    """Şifre sıfırlama isteği"""
+    try:
+        data = request.get_json()
+        email = data.get('email', '').strip().lower()
+        
+        logger.info(f"Password reset request: email={email} - IP: {request.remote_addr}")
+        
+        if not email:
+            logger.warning(f"Password reset failed - missing email: IP: {request.remote_addr}")
+            return jsonify({'error': 'Email adresi gerekli'}), 400
+        
+        # Email formatını kontrol et
+        if '@' not in email or '.' not in email:
+            logger.warning(f"Password reset failed - invalid email format: email={email} - IP: {request.remote_addr}")
+            return jsonify({'error': 'Geçerli bir email adresi girin'}), 400
+        
+        conn = sqlite3.connect('chatbot.db')
+        cursor = conn.cursor()
+        
+        # Kullanıcıyı email ile bul
+        cursor.execute('SELECT id, username FROM users WHERE email = ?', (email,))
+        user = cursor.fetchone()
+        
+        if not user:
+            # Güvenlik için kullanıcı bulunamasa da başarılı mesajı döndür
+            logger.warning(f"Password reset failed - user not found: email={email} - IP: {request.remote_addr}")
+            conn.close()
+            return jsonify({
+                'message': 'Şifre sıfırlama linki email adresinize gönderildi (eğer bu email adresi sistemde kayıtlıysa)'
+            })
+        
+        user_id, username = user
+        
+        # Eski token'ları temizle
+        cursor.execute('DELETE FROM password_reset_tokens WHERE user_id = ?', (user_id,))
+        
+        # Yeni token oluştur
+        reset_token = generate_reset_token()
+        expires_at = datetime.now().replace(microsecond=0) + timedelta(hours=1)
+        
+        # Token'ı veritabanına kaydet
+        cursor.execute(
+            'INSERT INTO password_reset_tokens (user_id, token, expires_at) VALUES (?, ?, ?)',
+            (user_id, reset_token, expires_at)
+        )
+        
+        conn.commit()
+        conn.close()
+        
+        # Email gönder
+        if send_reset_email(email, username, reset_token):
+            logger.info(f"Password reset email sent successfully: user_id={user_id}, username={username}, email={email} - IP: {request.remote_addr}")
+            return jsonify({
+                'message': 'Şifre sıfırlama linki email adresinize gönderildi'
+            })
+        else:
+            logger.error(f"Password reset email sending failed: user_id={user_id}, username={username}, email={email} - IP: {request.remote_addr}")
+            return jsonify({
+                'error': 'Email gönderilemedi. Lütfen daha sonra tekrar deneyin.'
+            }), 500
+            
+    except Exception as e:
+        logger.error(f"Password reset error: {str(e)} - IP: {request.remote_addr} - Traceback: {traceback.format_exc()}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/reset-password', methods=['POST'])
+@limiter.limit("5 per hour")  # Saatte 5 şifre sıfırlama denemesi
+def reset_password():
+    """Şifre sıfırlama"""
+    try:
+        data = request.get_json()
+        token = data.get('token', '').strip()
+        new_password = data.get('new_password', '')
+        
+        logger.info(f"Password reset attempt: token={token[:8]}... - IP: {request.remote_addr}")
+        
+        if not token or not new_password:
+            logger.warning(f"Password reset failed - missing token or password: IP: {request.remote_addr}")
+            return jsonify({'error': 'Token ve yeni şifre gerekli'}), 400
+        
+        if len(new_password) < 6:
+            logger.warning(f"Password reset failed - password too short: IP: {request.remote_addr}")
+            return jsonify({'error': 'Şifre en az 6 karakter olmalıdır'}), 400
+        
+        conn = sqlite3.connect('chatbot.db')
+        cursor = conn.cursor()
+        
+        # Token'ı kontrol et
+        cursor.execute('''
+            SELECT prt.user_id, prt.used, prt.expires_at, u.username 
+            FROM password_reset_tokens prt 
+            JOIN users u ON prt.user_id = u.id 
+            WHERE prt.token = ?
+        ''', (token,))
+        
+        token_data = cursor.fetchone()
+        
+        if not token_data:
+            logger.warning(f"Password reset failed - invalid token: token={token[:8]}... - IP: {request.remote_addr}")
+            conn.close()
+            return jsonify({'error': 'Geçersiz veya süresi dolmuş token'}), 400
+        
+        user_id, used, expires_at, username = token_data
+        
+        # Token kullanılmış mı kontrol et
+        if used:
+            logger.warning(f"Password reset failed - token already used: user_id={user_id}, username={username} - IP: {request.remote_addr}")
+            conn.close()
+            return jsonify({'error': 'Bu token zaten kullanılmış'}), 400
+        
+        # Token süresi dolmuş mu kontrol et
+        if datetime.now() > datetime.fromisoformat(expires_at):
+            logger.warning(f"Password reset failed - token expired: user_id={user_id}, username={username} - IP: {request.remote_addr}")
+            conn.close()
+            return jsonify({'error': 'Token süresi dolmuş'}), 400
+        
+        # Şifreyi güncelle
+        new_password_hash = hash_password(new_password)
+        cursor.execute('UPDATE users SET password_hash = ? WHERE id = ?', (new_password_hash, user_id))
+        
+        # Token'ı kullanıldı olarak işaretle
+        cursor.execute('UPDATE password_reset_tokens SET used = 1 WHERE token = ?', (token,))
+        
+        conn.commit()
+        conn.close()
+        
+        logger.info(f"Password reset successful: user_id={user_id}, username={username} - IP: {request.remote_addr}")
+        
+        return jsonify({
+            'message': 'Şifreniz başarıyla güncellendi'
+        })
+        
+    except Exception as e:
+        logger.error(f"Password reset error: {str(e)} - IP: {request.remote_addr} - Traceback: {traceback.format_exc()}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/verify-reset-token', methods=['POST'])
+def verify_reset_token():
+    """Reset token'ını doğrula"""
+    try:
+        data = request.get_json()
+        token = data.get('token', '').strip()
+        
+        if not token:
+            return jsonify({'error': 'Token gerekli'}), 400
+        
+        conn = sqlite3.connect('chatbot.db')
+        cursor = conn.cursor()
+        
+        # Token'ı kontrol et
+        cursor.execute('''
+            SELECT prt.user_id, prt.used, prt.expires_at, u.username 
+            FROM password_reset_tokens prt 
+            JOIN users u ON prt.user_id = u.id 
+            WHERE prt.token = ?
+        ''', (token,))
+        
+        token_data = cursor.fetchone()
+        conn.close()
+        
+        if not token_data:
+            return jsonify({'valid': False, 'error': 'Geçersiz token'})
+        
+        user_id, used, expires_at, username = token_data
+        
+        if used:
+            return jsonify({'valid': False, 'error': 'Token zaten kullanılmış'})
+        
+        if datetime.now() > datetime.fromisoformat(expires_at):
+            return jsonify({'valid': False, 'error': 'Token süresi dolmuş'})
+        
+        return jsonify({
+            'valid': True,
+            'username': username
+        })
+        
+    except Exception as e:
+        logger.error(f"Token verification error: {str(e)} - IP: {request.remote_addr}")
+        return jsonify({'error': str(e)}), 500
 
 @app.route('/api/user', methods=['GET'])
 @require_auth

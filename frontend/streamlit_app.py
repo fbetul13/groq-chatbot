@@ -799,12 +799,12 @@ def login_user(username, password):
         st.error(f"Bağlantı hatası: {str(e)}")
         return False
 
-def register_user(username, password):
+def register_user(username, password, email=""):
     """Kullanıcı kaydı"""
     try:
         response = requests.post(
             f"{st.session_state.api_url}/register",
-            json={"username": username, "password": password},
+            json={"username": username, "password": password, "email": email},
             timeout=5
         )
         if response.status_code == 200:
@@ -822,6 +822,62 @@ def register_user(username, password):
     except Exception as e:
         st.error(f"Bağlantı hatası: {str(e)}")
         return False
+
+def forgot_password(email):
+    """Şifre sıfırlama isteği"""
+    try:
+        response = requests.post(
+            f"{st.session_state.api_url}/forgot-password",
+            json={"email": email},
+            timeout=10
+        )
+        if response.status_code == 200:
+            data = response.json()
+            st.success(data.get('message', 'Şifre sıfırlama linki gönderildi'))
+            return True
+        else:
+            error_data = response.json()
+            st.error(f"Şifre sıfırlama hatası: {error_data.get('error', 'Bilinmeyen hata')}")
+            return False
+    except Exception as e:
+        st.error(f"Bağlantı hatası: {str(e)}")
+        return False
+
+def reset_password(token, new_password):
+    """Şifre sıfırlama"""
+    try:
+        response = requests.post(
+            f"{st.session_state.api_url}/reset-password",
+            json={"token": token, "new_password": new_password},
+            timeout=10
+        )
+        if response.status_code == 200:
+            data = response.json()
+            st.success(data.get('message', 'Şifre başarıyla güncellendi'))
+            return True
+        else:
+            error_data = response.json()
+            st.error(f"Şifre sıfırlama hatası: {error_data.get('error', 'Bilinmeyen hata')}")
+            return False
+    except Exception as e:
+        st.error(f"Bağlantı hatası: {str(e)}")
+        return False
+
+def verify_reset_token(token):
+    """Reset token'ını doğrula"""
+    try:
+        response = requests.post(
+            f"{st.session_state.api_url}/verify-reset-token",
+            json={"token": token},
+            timeout=5
+        )
+        if response.status_code == 200:
+            return response.json()
+        else:
+            return None
+    except Exception as e:
+        st.error(f"Token doğrulama hatası: {str(e)}")
+        return None
 
 def logout_user():
     """Kullanıcı çıkışı"""
@@ -2521,16 +2577,117 @@ def show_typing_cursor():
     
     return status_text
 
-# Ana başlık
-st.markdown("""
-<div class="main-header">
-    <h1>🤖 AI Chatbot</h1>
-    <p>Groq API ile güçlendirilmiş yapay zeka asistanı</p>
-</div>
-""", unsafe_allow_html=True)
+# URL parametrelerini kontrol et
+query_params = st.experimental_get_query_params()
+current_page = query_params.get("page", ["main"])[0]
+reset_token = query_params.get("token", [None])[0]
 
-# Kullanıcı kimlik doğrulama durumunu kontrol et
-is_authenticated = check_auth_status()
+# Şifre sıfırlama sayfası (token ile)
+if reset_token:
+    st.markdown("""
+    <div class="main-header">
+        <h1>🔑 Şifre Sıfırlama</h1>
+        <p>Yeni şifrenizi belirleyin</p>
+    </div>
+    """, unsafe_allow_html=True)
+    
+    # Token'ı doğrula
+    token_data = verify_reset_token(reset_token)
+    
+    if token_data and token_data.get('valid'):
+        username = token_data.get('username', 'Kullanıcı')
+        st.success(f"✅ Token geçerli! Kullanıcı: {username}")
+        
+        with st.form("reset_password_form"):
+            new_password = st.text_input("Yeni Şifre", type="password", key="new_password")
+            new_password_confirm = st.text_input("Yeni Şifre Tekrar", type="password", key="new_password_confirm")
+            reset_submitted = st.form_submit_button("Şifreyi Güncelle", use_container_width=True)
+            
+            if reset_submitted:
+                if new_password and new_password_confirm:
+                    if new_password == new_password_confirm:
+                        if len(new_password) >= 6:
+                            if reset_password(reset_token, new_password):
+                                st.success("✅ Şifreniz başarıyla güncellendi!")
+                                st.info("Artık yeni şifrenizle giriş yapabilirsiniz.")
+                                st.markdown("""
+                                <div style="text-align: center; margin: 20px 0;">
+                                    <a href="?" style="color: #667eea; text-decoration: none; font-size: 14px; font-weight: 500;">
+                                        ← Giriş Sayfasına Dön
+                                    </a>
+                                </div>
+                                """, unsafe_allow_html=True)
+                            else:
+                                st.error("❌ Şifre güncellenirken bir hata oluştu!")
+                        else:
+                            st.error("Şifre en az 6 karakter olmalıdır!")
+                    else:
+                        st.error("Şifreler eşleşmiyor!")
+                else:
+                    st.error("Şifre alanları gerekli!")
+    else:
+        error_msg = token_data.get('error', 'Geçersiz token') if token_data else 'Token doğrulanamadı'
+        st.error(f"❌ {error_msg}")
+        st.info("Lütfen yeni bir şifre sıfırlama linki talep edin.")
+        
+        st.markdown("""
+        <div style="text-align: center; margin: 20px 0;">
+            <a href="?page=forgot-password" style="color: #ff4444; text-decoration: none; font-size: 14px; font-weight: 500;">
+                🔐 Yeni Şifre Sıfırlama Linki Talep Et
+            </a>
+        </div>
+        """, unsafe_allow_html=True)
+    
+    st.stop()
+
+# Şifre unuttum sayfası
+elif current_page == "forgot-password":
+    st.markdown("""
+    <div class="main-header">
+        <h1>🔐 Şifre Sıfırlama</h1>
+        <p>Email adresinizi girin, şifre sıfırlama linki gönderelim</p>
+    </div>
+    """, unsafe_allow_html=True)
+    
+    with st.form("forgot_password_form"):
+        forgot_email = st.text_input("Email Adresi", key="forgot_email")
+        forgot_submitted = st.form_submit_button("Şifre Sıfırlama Linki Gönder", use_container_width=True)
+        
+        if forgot_submitted:
+            if forgot_email:
+                if '@' in forgot_email and '.' in forgot_email:
+                    if forgot_password(forgot_email):
+                        st.success("✅ Şifre sıfırlama linki email adresinize gönderildi!")
+                        st.info("📧 Email'inizi kontrol edin ve linke tıklayın.")
+                else:
+                    st.error("Geçerli bir email adresi girin!")
+            else:
+                st.error("Email adresi gerekli!")
+    
+    # Geri dön linki
+    st.markdown("---")
+    st.markdown("""
+    <div style="text-align: center; margin: 20px 0;">
+        <a href="?" style="color: #667eea; text-decoration: none; font-size: 14px; font-weight: 500;">
+            ← Giriş Sayfasına Dön
+        </a>
+    </div>
+    """, unsafe_allow_html=True)
+    
+    st.stop()
+
+# Ana sayfa (giriş/kayıt)
+else:
+    # Ana başlık
+    st.markdown("""
+    <div class="main-header">
+        <h1>🤖 AI Chatbot</h1>
+        <p>Groq API ile güçlendirilmiş yapay zeka asistanı</p>
+    </div>
+    """, unsafe_allow_html=True)
+
+    # Kullanıcı kimlik doğrulama durumunu kontrol et
+    is_authenticated = check_auth_status()
 
 # Kullanıcı giriş yapmamışsa giriş/ kayıt formunu göster
 if not is_authenticated:
@@ -2547,6 +2704,16 @@ if not is_authenticated:
         with st.form("login_form"):
             login_username = st.text_input("Kullanıcı Adı", key="login_username")
             login_password = st.text_input("Şifre", type="password", key="login_password")
+            
+            # Şifre unuttum linki - şifre ile giriş butonu arasında
+            st.markdown("""
+            <div style="text-align: left; margin: 10px 0;">
+                <a href="?page=forgot-password" style="color: #ff4444; text-decoration: none; font-size: 14px; font-weight: 500;">
+                    🔐 Şifremi Unuttum
+                </a>
+            </div>
+            """, unsafe_allow_html=True)
+            
             login_submitted = st.form_submit_button("Giriş Yap", use_container_width=True)
             
             if login_submitted:
@@ -2559,6 +2726,7 @@ if not is_authenticated:
     with auth_tab2:
         with st.form("register_form"):
             register_username = st.text_input("Kullanıcı Adı", key="register_username")
+            register_email = st.text_input("Email (Opsiyonel)", key="register_email", help="Şifre sıfırlama için gerekli")
             register_password = st.text_input("Şifre", type="password", key="register_password")
             register_password_confirm = st.text_input("Şifre Tekrar", type="password", key="register_password_confirm")
             register_submitted = st.form_submit_button("Kayıt Ol", use_container_width=True)
@@ -2568,7 +2736,7 @@ if not is_authenticated:
                     if register_password == register_password_confirm:
                         if len(register_username) >= 3:
                             if len(register_password) >= 6:
-                                if register_user(register_username, register_password):
+                                if register_user(register_username, register_password, register_email):
                                     st.rerun()
                             else:
                                 st.error("Şifre en az 6 karakter olmalıdır!")
@@ -2578,6 +2746,10 @@ if not is_authenticated:
                         st.error("Şifreler eşleşmiyor!")
                 else:
                     st.error("Kullanıcı adı ve şifre gerekli!")
+    
+
+    
+
     
     # API durumu kontrolü
     st.markdown("---")
