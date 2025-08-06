@@ -838,7 +838,7 @@ def check_admin_status():
         return False
 
 def login_user(username, password):
-    """Kullanıcı girişi"""
+    """Kullanıcı girişi (kullanıcı adı veya email ile)"""
     try:
         response = requests.post(
             f"{st.session_state.api_url}/login",
@@ -3021,7 +3021,7 @@ if not is_authenticated:
     
     with auth_tab1:
         with st.form("login_form"):
-            login_username = st.text_input("Kullanıcı Adı", key="login_username")
+            login_username = st.text_input("Kullanıcı Adı veya Email", key="login_username", help="Kullanıcı adınızı veya email adresinizi girin")
             login_password = st.text_input("Şifre", type="password", key="login_password")
             
             # Şifre unuttum linki - şifre ile giriş butonu arasında
@@ -3040,7 +3040,7 @@ if not is_authenticated:
                     if login_user(login_username, login_password):
                         st.rerun()
                 else:
-                    st.error("Kullanıcı adı ve şifre gerekli!")
+                    st.error("Kullanıcı adı/email ve şifre gerekli!")
     
     with auth_tab2:
         with st.form("register_form"):
