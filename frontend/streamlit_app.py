@@ -2993,7 +2993,7 @@ elif current_page == "forgot-password":
 
 # Ana sayfa (giriş/kayıt)
 else:
-    # Ana başlık
+    # Ana başlık ve tanıtım (her zaman giriş sayfasının en üstünde)
     st.markdown("""
     <div class="main-header">
         <h1>🤖 AI Chatbot</h1>
@@ -3008,7 +3008,7 @@ else:
     else:
         is_authenticated = check_auth_status()
 
-# Kullanıcı giriş yapmamışsa giriş/ kayıt formunu göster
+# Kullanıcı giriş yapmamışsa giriş/ kayıt formunu ve kutuları göster
 if not is_authenticated:
     st.markdown("""
     <div class="auth-container">
@@ -3066,10 +3066,29 @@ if not is_authenticated:
                 else:
                     st.error("Kullanıcı adı ve şifre gerekli!")
     
+    # Özellikler, teknolojiler ve destek kutuları (sadece girişte)
+    st.markdown("---")
+    col1, col2, col3 = st.columns(3)
+    with col1:
+        st.markdown("**🔧 Teknolojiler:**")
+        st.markdown("- Python Flask")
+        st.markdown("- Streamlit")
+        st.markdown("- Groq API")
+        st.markdown("- SQLite DB")
+    with col2:
+        st.markdown("**🚀 Özellikler:**")
+        st.markdown("- Kullanıcı kimlik doğrulama")
+        st.markdown("- Kişisel sohbet geçmişi")
+        st.markdown("- Oturum yönetimi")
+        st.markdown("- Sohbet indirme")
+    with col3:
+        st.markdown("**📞 Destek:**")
+        st.markdown("- API durumu kontrolü")
+        st.markdown("- Hata yönetimi")
+        st.markdown("- Responsive tasarım")
+        st.markdown("- Güvenli veri saklama")
+    st.markdown("---")
 
-    
-
-    
     # API durumu kontrolü
     st.markdown("---")
     st.markdown("## 📊 API Durumu")
@@ -3088,7 +3107,10 @@ if not is_authenticated:
 
 # Kullanıcı giriş yapmışsa ana uygulamayı göster
 else:
-    
+    # ... mevcut chat ekranı kodu ...
+    # Özellikler, teknolojiler ve destek kutuları BURADAN KALDIRILDI
+    # ... mevcut kod ...
+
     # Kullanıcı bilgileri
     st.markdown(f"""
     <div class="user-info">
@@ -4334,31 +4356,6 @@ else:
     # Rate limit test fonksiyonunu çağır
     test_rate_limits()
     
-    # Alt bilgi
-    st.markdown("---")
-    col1, col2, col3 = st.columns(3)
-
-    with col1:
-        st.markdown("**🔧 Teknolojiler:**")
-        st.markdown("- Python Flask")
-        st.markdown("- Streamlit")
-        st.markdown("- Groq API")
-        st.markdown("- SQLite DB")
-
-    with col2:
-        st.markdown("**🚀 Özellikler:**")
-        st.markdown("- Kullanıcı kimlik doğrulama")
-        st.markdown("- Kişisel sohbet geçmişi")
-        st.markdown("- Oturum yönetimi")
-        st.markdown("- Sohbet indirme")
-
-    with col3:
-        st.markdown("**📞 Destek:**")
-        st.markdown("- API durumu kontrolü")
-        st.markdown("- Hata yönetimi")
-        st.markdown("- Responsive tasarım")
-        st.markdown("- Güvenli veri saklama")
-
     # Footer
     st.markdown("---")
     st.markdown(
@@ -4372,5 +4369,4 @@ else:
     if st.session_state.get('auto_scroll', False):
         st.markdown("<br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br>", unsafe_allow_html=True)
         st.session_state.auto_scroll = False
-
-    # Ana chat arayüzü zaten yukarıda tanımlandı
+          # Ana chat arayüzü zaten yukarıda tanımlandı
