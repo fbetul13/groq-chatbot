@@ -743,7 +743,7 @@ def register():
 @app.route('/api/login', methods=['POST'])
 @limiter.limit("5 per minute")  # Dakikada 5 giriş denemesi
 def login():
-    """Kullanıcı girişi"""
+    """Kullanıcı girişi (kullanıcı adı veya email ile)"""
     try:
         data = request.get_json()
         username = data.get('username', '').strip()
@@ -753,16 +753,17 @@ def login():
         
         if not username or not password:
             logger.warning(f"Login failed - missing credentials: username={username} - IP: {request.remote_addr}")
-            return jsonify({'error': 'Username and password are required'}), 400
+            return jsonify({'error': 'Kullanıcı adı/email ve şifre gerekli'}), 400
         
         password_hash = hash_password(password)
         
         conn = sqlite3.connect('chatbot.db')
         cursor = conn.cursor()
         
+        # Kullanıcı adı veya email ile giriş yapabilir
         cursor.execute(
-            'SELECT id, username FROM users WHERE username = ? AND password_hash = ?',
-            (username, password_hash)
+            'SELECT id, username FROM users WHERE (username = ? OR email = ?) AND password_hash = ?',
+            (username, username, password_hash)
         )
         user = cursor.fetchone()
         
@@ -791,7 +792,7 @@ def login():
         else:
             conn.close()
             logger.warning(f"Login failed - invalid credentials: username={username} - IP: {request.remote_addr}")
-            return jsonify({'error': 'Invalid username or password'}), 401
+            return jsonify({'error': 'Geçersiz kullanıcı adı/email veya şifre'}), 401
             
     except Exception as e:
         logger.error(f"Login error: {str(e)} - IP: {request.remote_addr} - Traceback: {traceback.format_exc()}")
