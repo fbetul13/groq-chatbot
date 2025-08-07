@@ -4096,10 +4096,68 @@ else:
 
     # Ana chat arayüzü - Sayfanın başında
     st.markdown("## 💬 AI Chatbot")
-    
-    # Resim analizi butonu (opsiyonel)
-    if st.button("🖼️ Resim Analizi", use_container_width=True):
-        show_image_analysis_interface()
+
+    # Resim analizi ve dosya özetleme butonları
+    col1, col2 = st.columns(2)
+    with col1:
+        if st.button("🖼️ Resim Analizi", use_container_width=True):
+            show_image_analysis_interface()
+    with col2:
+        if st.button("🗂️ Dosya Yükle & Özetle", use_container_width=True):
+            st.session_state.show_file_summary = True
+
+    # Dosya özetleme arayüzü
+    if st.session_state.get('show_file_summary', False):
+        st.markdown("## 🗂️ Dosya Yükle & Özetle")
+        uploaded_file = st.file_uploader("Bir dosya seçin (PDF, TXT, DOCX)", type=["pdf", "txt", "docx"])
+        if uploaded_file is not None:
+            file_text = None
+            try:
+                if uploaded_file.name.endswith('.txt'):
+                    file_text = uploaded_file.read().decode("utf-8", errors="ignore")
+                elif uploaded_file.name.endswith('.pdf'):
+                    import PyPDF2
+                    reader = PyPDF2.PdfReader(uploaded_file)
+                    file_text = "\n".join([page.extract_text() or "" for page in reader.pages])
+                elif uploaded_file.name.endswith('.docx'):
+                    import docx
+                    doc = docx.Document(uploaded_file)
+                    file_text = "\n".join([para.text for para in doc.paragraphs])
+            except Exception as e:
+                st.error(f"Dosya okunamadı: {e}")
+            # Dosya içeriği kontrolü
+            if file_text and file_text.strip():
+                st.success("Dosya başarıyla okundu. Şimdi özetleniyor...")
+                # Özetleme için API'ye gönder
+                try:
+                    summary_prompt = f"Aşağıdaki metni kısa ve anlaşılır şekilde özetle:\n\n{file_text[:4000]}"
+                    response = requests.post(
+                        f"{st.session_state.api_url}/chat",
+                        json={
+                            "messages": [
+                                {"role": "system", "content": "Sen bir özetleme asistanısın."},
+                                {"role": "user", "content": summary_prompt}
+                            ],
+                            "model": st.session_state.get("model", "llama3-8b-8192"),
+                            "temperature": 0.5,
+                            "max_tokens": 512
+                        },
+                        timeout=60,
+                        cookies=st.session_state.get('cookies', {}) if is_authenticated else None
+                    )
+                    if response.status_code == 200:
+                        summary = response.json().get("choices", [{}])[0].get("message", {}).get("content", "")
+                        st.markdown("### 📄 Dosya Özeti:")
+                        st.info(summary)
+                    else:
+                        st.error(f"Özetleme başarısız: {response.text}")
+                except Exception as e:
+                    st.error(f"Özetleme sırasında hata oluştu: {e}")
+            else:
+                st.warning("Yüklenen dosya boş veya özetlenebilir metin içermiyor.")
+        if st.button("Kapat", key="close_file_summary", use_container_width=True):
+            st.session_state.show_file_summary = False
+            st.rerun()
     
     # Mevcut oturum bilgisi
     if st.session_state.current_session_id:
