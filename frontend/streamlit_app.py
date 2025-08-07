@@ -3011,45 +3011,8 @@ else:
 
 # Kullanıcı giriş yapmamışsa giriş/ kayıt formunu ve kutuları göster
 if not is_authenticated:
-    st.markdown("""
-    <div class="auth-container">
-        <h2>🔐 Giriş Yapın</h2>
-    </div>
-    """, unsafe_allow_html=True)
 
-    # Giriş/Kayıt seçimi
-    auth_tab1, auth_tab2 = st.tabs(["🔑 Giriş", "📝 Kayıt"])
-
-    with auth_tab1:
-        with st.form("login_form"):
-            login_username = st.text_input("Kullanıcı Adı", key="login_username")
-            login_password = st.text_input("Şifre", type="password", key="login_password")
-
-            # Şifre unuttum linki - şifre ile giriş butonu arasında
-            st.markdown("""
-            <div style='text-align: left; margin: 10px 0;'>
-                <a href='?page=forgot-password' style='color: #ff4444; text-decoration: none; font-size: 14px; font-weight: 500;'>
-                    &#128272; Şifremi Unuttum
-                </a>
-            </div>
-            """, unsafe_allow_html=True)
-
-            login_submitted = st.form_submit_button("Giriş Yap", use_container_width=True)
-            if login_submitted:
-                pass
-
-    with auth_tab2:
-        with st.form("register_form"):
-            register_username = st.text_input("Kullanıcı Adı", key="register_username")
-            register_email = st.text_input("Email (Opsiyonel)", key="register_email", help="Şifre sıfırlama için gerekli")
-            register_password = st.text_input("Şifre", type="password", key="register_password")
-            register_password_confirm = st.text_input("Şifre Tekrar", type="password", key="register_password_confirm")
-            register_submitted = st.form_submit_button("Kayıt Ol", use_container_width=True)
-            
-            if register_submitted:
-                pass
-
-    # Giriş/kayıt formunun hemen altında landing/özellik kutuları
+    # 1. AI Chatbot başlığı ve tanıtım
     st.markdown("""
     <div style="text-align: center; padding: 40px 0;">
         <h1 style="font-size: 2.2rem; margin-bottom: 20px; color: #1f77b4;">&#129302; AI Chatbot</h1>
@@ -3059,6 +3022,7 @@ if not is_authenticated:
     </div>
     """, unsafe_allow_html=True)
 
+    # 2. Tanıtım kutucukları
     st.markdown("### ✨ Öne Çıkan Özellikler")
     col1, col2, col3 = st.columns(3)
     with col1:
@@ -3083,6 +3047,8 @@ if not is_authenticated:
         </div>
         """, unsafe_allow_html=True)
     st.markdown("---")
+
+    # 3. Özellikler/teknolojiler/destek kutuları
     col1, col2, col3 = st.columns(3)
     with col1:
         st.markdown("**🔧 Teknolojiler:**")
@@ -3103,6 +3069,52 @@ if not is_authenticated:
         st.markdown("- Responsive tasarım")
         st.markdown("- Güvenli veri saklama")
     st.markdown("---")
+
+    # 4. Giriş/Kayıt formu en aşağıda
+    st.markdown("""
+    <div class="auth-container">
+        <h2>🔐 Giriş Yapın</h2>
+    </div>
+    """, unsafe_allow_html=True)
+
+    auth_tab1, auth_tab2 = st.tabs(["🔑 Giriş", "📝 Kayıt"])
+
+    with auth_tab1:
+        with st.form("login_form"):
+            login_username = st.text_input("Kullanıcı Adı", key="login_username")
+            login_password = st.text_input("Şifre", type="password", key="login_password")
+
+            st.markdown("""
+            <div style='text-align: left; margin: 10px 0;'>
+                <a href='?page=forgot-password' style='color: #ff4444; text-decoration: none; font-size: 14px; font-weight: 500;'>
+                    &#128272; Şifremi Unuttum
+                </a>
+            </div>
+            """, unsafe_allow_html=True)
+
+            login_submitted = st.form_submit_button("Giriş Yap", use_container_width=True)
+            if login_submitted:
+                if login_username and login_password:
+                    if login_user(login_username, login_password):
+                        st.experimental_rerun()
+                else:
+                    st.warning("Kullanıcı adı ve şifre gerekli.")
+
+    with auth_tab2:
+        with st.form("register_form"):
+            register_username = st.text_input("Kullanıcı Adı", key="register_username")
+            register_email = st.text_input("Email (Opsiyonel)", key="register_email", help="Şifre sıfırlama için gerekli")
+            register_password = st.text_input("Şifre", type="password", key="register_password")
+            register_password_confirm = st.text_input("Şifre Tekrar", type="password", key="register_password_confirm")
+            register_submitted = st.form_submit_button("Kayıt Ol", use_container_width=True)
+            if register_submitted:
+                if not register_username or not register_password or not register_password_confirm:
+                    st.warning("Tüm zorunlu alanları doldurun.")
+                elif register_password != register_password_confirm:
+                    st.warning("Şifreler eşleşmiyor.")
+                else:
+                    if register_user(register_username, register_password, register_email):
+                        st.experimental_rerun()
 
     # API durumu kontrolü
     st.markdown("---")
