@@ -2021,6 +2021,7 @@ def display_token_status_sidebar(token_info):
     st.sidebar.markdown(f"**Kalan:** {available_tokens:,}")
     
     # Uyarı mesajı (sadece kritik durumlarda)
+    warning_message = token_info.get('warning_message', '')
     if warning_level in ['critical', 'warning']:
         st.sidebar.warning(f"⚠️ {warning_message}")
     
@@ -3015,33 +3016,28 @@ if not is_authenticated:
         <h2>🔐 Giriş Yapın</h2>
     </div>
     """, unsafe_allow_html=True)
-    
+
     # Giriş/Kayıt seçimi
     auth_tab1, auth_tab2 = st.tabs(["🔑 Giriş", "📝 Kayıt"])
-    
+
     with auth_tab1:
         with st.form("login_form"):
             login_username = st.text_input("Kullanıcı Adı", key="login_username")
             login_password = st.text_input("Şifre", type="password", key="login_password")
-            
+
             # Şifre unuttum linki - şifre ile giriş butonu arasında
             st.markdown("""
-            <div style="text-align: left; margin: 10px 0;">
-                <a href="?page=forgot-password" style="color: #ff4444; text-decoration: none; font-size: 14px; font-weight: 500;">
-                    🔐 Şifremi Unuttum
+            <div style='text-align: left; margin: 10px 0;'>
+                <a href='?page=forgot-password' style='color: #ff4444; text-decoration: none; font-size: 14px; font-weight: 500;'>
+                    &#128272; Şifremi Unuttum
                 </a>
             </div>
             """, unsafe_allow_html=True)
-            
+
             login_submitted = st.form_submit_button("Giriş Yap", use_container_width=True)
-            
             if login_submitted:
-                if login_username and login_password:
-                    if login_user(login_username, login_password):
-                        st.rerun()
-                else:
-                    st.error("Kullanıcı adı ve şifre gerekli!")
-    
+                pass
+
     with auth_tab2:
         with st.form("register_form"):
             register_username = st.text_input("Kullanıcı Adı", key="register_username")
@@ -3051,22 +3047,41 @@ if not is_authenticated:
             register_submitted = st.form_submit_button("Kayıt Ol", use_container_width=True)
             
             if register_submitted:
-                if register_username and register_password:
-                    if register_password == register_password_confirm:
-                        if len(register_username) >= 3:
-                            if len(register_password) >= 6:
-                                if register_user(register_username, register_password, register_email):
-                                    st.rerun()
-                            else:
-                                st.error("Şifre en az 6 karakter olmalıdır!")
-                        else:
-                            st.error("Kullanıcı adı en az 3 karakter olmalıdır!")
-                    else:
-                        st.error("Şifreler eşleşmiyor!")
-                else:
-                    st.error("Kullanıcı adı ve şifre gerekli!")
-    
-    # Özellikler, teknolojiler ve destek kutuları (sadece girişte)
+                pass
+
+    # Giriş/kayıt formunun hemen altında landing/özellik kutuları
+    st.markdown("""
+    <div style="text-align: center; padding: 40px 0;">
+        <h1 style="font-size: 2.2rem; margin-bottom: 20px; color: #1f77b4;">&#129302; AI Chatbot</h1>
+        <p style="font-size: 1.1rem; color: #666; margin-bottom: 40px;">
+            Groq API ile güçlendirilmiş yapay zeka sohbet asistanı
+        </p>
+    </div>
+    """, unsafe_allow_html=True)
+
+    st.markdown("### ✨ Öne Çıkan Özellikler")
+    col1, col2, col3 = st.columns(3)
+    with col1:
+        st.markdown("""
+        <div style="text-align: center; padding: 20px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 10px; color: white;">
+            <h3>&#129504; Akıllı Sohbet</h3>
+            <p>Gelişmiş AI modeli ile doğal ve akıcı konuşmalar</p>
+        </div>
+        """, unsafe_allow_html=True)
+    with col2:
+        st.markdown("""
+        <div style="text-align: center; padding: 20px; background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); border-radius: 10px; color: white;">
+            <h3>&#128241; Kullanıcı Dostu</h3>
+            <p>Modern ve responsive tasarım ile kolay kullanım</p>
+        </div>
+        """, unsafe_allow_html=True)
+    with col3:
+        st.markdown("""
+        <div style="text-align: center; padding: 20px; background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%); border-radius: 10px; color: white;">
+            <h3>&#128274; Güvenli</h3>
+            <p>Kişisel verileriniz güvenle saklanır</p>
+        </div>
+        """, unsafe_allow_html=True)
     st.markdown("---")
     col1, col2, col3 = st.columns(3)
     with col1:
@@ -3114,8 +3129,8 @@ else:
     # Kullanıcı bilgileri
     st.markdown(f"""
     <div class="user-info">
-        👤 <strong>{st.session_state.username}</strong> olarak giriş yaptınız
-        {' 👑' if check_admin_status() else ''}
+        &#128100; <strong>{st.session_state.username}</strong> olarak giriş yaptınız
+        {' &#128081;' if check_admin_status() else ''}
     </div>
     """, unsafe_allow_html=True)
     
@@ -3228,13 +3243,13 @@ else:
         st.markdown(f"""
         ### 📋 {selected_model['icon']} {selected_model['name']}
         
-        **📝 Açıklama:** {selected_model['description']}
+        **&#128221; Açıklama:** {selected_model['description']}
         
-        **💪 Güçlü Yanları:** {selected_model['strengths']}
+        **&#128170; Güçlü Yanları:** {selected_model['strengths']}
         
-        **⚡ Hız:** {selected_model['speed']}
+        **&#9889; Hız:** {selected_model['speed']}
         
-        **🧠 Bağlam:** {selected_model['context']}
+        **&#129504; Bağlam:** {selected_model['context']}
         """)
         
         # Model önerisi
