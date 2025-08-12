@@ -20,3 +20,8 @@ Werkzeug>=2.3.0
 psycopg2-binary>=2.9.0
 redis>=4.5.0
 prometheus-client>=0.17.0 
+# Text-to-Speech
+gTTS==2.5.1
+edge-tts==6.1.9
+pyttsx3==2.90
+pydub==0.25.1
