@@ -3519,8 +3519,8 @@ def create_tts_audio_gtts(text, language='tr', filename=None):
         
         file_path = os.path.join(uploads_dir, filename)
         
-        # gTTS ile ses oluştur
-        tts = gTTS(text=text, lang=language, slow=False)
+        # gTTS ile ses oluştur (tld='com' bazı bölgelerde daha stabil)
+        tts = gTTS(text=text, lang=language, slow=False, tld='com')
         tts.save(file_path)
         
         return {

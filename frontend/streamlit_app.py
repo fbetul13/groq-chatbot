@@ -4346,8 +4346,30 @@ else:
                                             else:
                                                 st.warning("Ses dosyası indirilemedi")
                                     else:
+                                        # gTTS bazen bölgesel hatalar verir; Edge TTS ile tekrar dene
                                         err = resp.json().get('error', 'TTS başarısız')
-                                        st.warning(f"TTS başarısız: {err}")
+                                        st.info("gTTS başarısız oldu, Edge TTS ile tekrar deneniyor...")
+                                        retry = requests.post(
+                                            f"{st.session_state.api_url}/tts/generate",
+                                            json={'text': message["content"], 'engine': 'edge_tts', 'voice': '', 'language': ''},
+                                            timeout=60,
+                                            cookies=st.session_state.get('cookies', {})
+                                        )
+                                        if retry.status_code == 200:
+                                            info = retry.json()
+                                            fn = info.get('filename')
+                                            if fn:
+                                                file_resp = requests.get(
+                                                    f"{st.session_state.api_url}/tts/download/{fn}",
+                                                    cookies=st.session_state.get('cookies', {}),
+                                                    stream=True
+                                                )
+                                                if file_resp.status_code == 200:
+                                                    st.audio(file_resp.content, format="audio/mpeg")
+                                                else:
+                                                    st.warning("Ses dosyası indirilemedi (Edge)")
+                                        else:
+                                            st.warning(f"TTS başarısız: {err}")
                                 except Exception as _e:
                                     st.warning(f"TTS hatası: {_e}")
                     
