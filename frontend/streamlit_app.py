@@ -4150,6 +4150,27 @@ else:
                 st.session_state.show_image_analysis = False
 
     
+    # Inline TTS isteği varsa işle
+    if st.session_state.get('tts_inline_request'):
+        req = st.session_state.tts_inline_request
+        try:
+            # Varsayılan motor/dil: gTTS + otomatik dil
+            result = generate_tts_audio(req["text"], engine='gtts', voice='', language='')
+            if 'error' not in result:
+                audio_data = download_tts_file(result['filename'])
+                if audio_data:
+                    # Otomatik oynatma (tarayıcı destekliyse)
+                    import base64 as _b64
+                    b64 = _b64.b64encode(audio_data).decode()
+                    st.markdown(
+                        f'<audio autoplay="true"><source src="data:audio/mpeg;base64,{b64}" type="audio/mpeg"></audio>',
+                        unsafe_allow_html=True
+                    )
+            # İsteği tüket
+            del st.session_state.tts_inline_request
+        except Exception:
+            del st.session_state.tts_inline_request
+
     # Resim analizi arayüzü
     if st.session_state.get('show_image_analysis', False):
         show_image_analysis_interface()
@@ -4295,11 +4316,40 @@ else:
                     
                     with col3:
                         # TTS butonu (küçük)
-                        if st.button("🔊", key=f"tts_{i}", help="Bu yanıtı sese çevir", use_container_width=True):
-                            # TTS arayüzünü aç ve metni otomatik doldur
-                            st.session_state.show_tts_interface = True
-                            st.session_state.tts_text = message["content"]
-                            st.rerun()
+                        if st.button("🔊", key=f"tts_{i}", help="Bu yanıtı sesli oku", use_container_width=True):
+                            with st.spinner("Ses oluşturuluyor..."):
+                                try:
+                                    # Doğrudan backend'e istek gönder
+                                    data = {
+                                        'text': message["content"],
+                                        'engine': 'gtts',
+                                        'voice': '',
+                                        'language': ''
+                                    }
+                                    resp = requests.post(
+                                        f"{st.session_state.api_url}/tts/generate",
+                                        json=data,
+                                        timeout=60,
+                                        cookies=st.session_state.get('cookies', {})
+                                    )
+                                    if resp.status_code == 200:
+                                        info = resp.json()
+                                        fn = info.get('filename')
+                                        if fn:
+                                            file_resp = requests.get(
+                                                f"{st.session_state.api_url}/tts/download/{fn}",
+                                                cookies=st.session_state.get('cookies', {}),
+                                                stream=True
+                                            )
+                                            if file_resp.status_code == 200:
+                                                st.audio(file_resp.content, format="audio/mpeg")
+                                            else:
+                                                st.warning("Ses dosyası indirilemedi")
+                                    else:
+                                        err = resp.json().get('error', 'TTS başarısız')
+                                        st.warning(f"TTS başarısız: {err}")
+                                except Exception as _e:
+                                    st.warning(f"TTS hatası: {_e}")
                     
                     with col4:
                         # Boş alan
@@ -4839,6 +4889,25 @@ def show_tts_interface():
         st.info("Henüz TTS geçmişi yok.")
 
 # Ana chat arayüzü zaten yukarıda tanımlandı
+
+# Inline TTS isteği varsa burada işle (fonksiyonlar tanımlandıktan sonra)
+if st.session_state.get('tts_inline_request'):
+    req = st.session_state.tts_inline_request
+    try:
+        engine = req.get('engine', 'gtts')
+        text = req.get('text', '')
+        if text:
+            with st.spinner("Ses oluşturuluyor..."):
+                result = generate_tts_audio(text, engine=engine, voice='', language='')
+                if 'error' in result:
+                    st.warning(f"TTS başarısız: {result['error']}")
+                else:
+                    audio_data = download_tts_file(result['filename'])
+                    if audio_data:
+                        st.audio(audio_data, format="audio/mpeg")
+        del st.session_state.tts_inline_request
+    except Exception:
+        del st.session_state.tts_inline_request
 
 # TTS arayüzü çağrısı (fonksiyon tanımından SONRA)
 if st.session_state.get('show_tts_interface', False):
