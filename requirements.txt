@@ -17,5 +17,10 @@ webdriver-manager>=4.0.0
 openai>=1.0.0
 pygments>=2.15.0
 markdown>=3.5.0 
-
-opencv-python 
+# Cloud/CI ortamları için headless sürüm daha uyumlu
+opencv-python-headless<5
+# Text-to-Speech kütüphaneleri
+gTTS>=2.3.2
+pyttsx3>=2.90
+edge-tts>=6.1.9
+pydub>=0.25.1 

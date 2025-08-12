@@ -4,4 +4,7 @@ pandas>=2.0.0
 langdetect>=1.0.9
 emoji>=2.2.0
 pygments>=2.15.0
-markdown>=3.5.0 
+markdown>=3.5.0
+# Text-to-Speech için gerekli kütüphaneler
+pyperclip>=1.8.2 
+audio-recorder-streamlit>=0.0.8

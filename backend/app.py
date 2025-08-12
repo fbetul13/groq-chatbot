@@ -32,9 +32,51 @@ import string
 import base64
 import mimetypes
 from PIL import Image
-import cv2
+# OpenCV bazı ortamlarda bulunmayabilir; opsiyonel yapalım
+try:
+    import cv2
+    OPENCV_AVAILABLE = True
+except Exception as _e:
+    OPENCV_AVAILABLE = False
+    print(f"OpenCV (cv2) import uyarısı: {_e}")
 import numpy as np
 from werkzeug.utils import secure_filename
+
+# Text-to-Speech kütüphaneleri (motor bazlı import ve bayraklar)
+GTTS_AVAILABLE = False
+EDGE_TTS_AVAILABLE = False
+PYTTSX3_AVAILABLE = False
+
+# gTTS
+try:
+    from gtts import gTTS
+    from gtts.lang import tts_langs
+    GTTS_AVAILABLE = True
+except Exception as e:
+    print(f"gTTS import hatası: {e}")
+
+# edge-tts
+try:
+    import asyncio
+    import edge_tts
+    EDGE_TTS_AVAILABLE = True
+except Exception as e:
+    print(f"edge-tts import hatası: {e}")
+
+# pyttsx3
+try:
+    import pyttsx3
+    PYTTSX3_AVAILABLE = True
+except Exception as e:
+    print(f"pyttsx3 import hatası: {e}")
+
+# Opsiyonel: pydub sadece bazı senaryolarda gerekli olabilir; import hatası TTS'i kapatmasın
+try:
+    from pydub import AudioSegment  # noqa: F401
+except Exception as e:
+    print(f"pydub import uyarısı: {e}")
+
+TTS_AVAILABLE = GTTS_AVAILABLE or EDGE_TTS_AVAILABLE or PYTTSX3_AVAILABLE
 
 # .env dosyasını yükle
 load_dotenv()
@@ -358,6 +400,22 @@ def init_db():
             upload_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             FOREIGN KEY (user_id) REFERENCES users (id),
             FOREIGN KEY (session_id) REFERENCES chat_sessions (session_id)
+        )
+    ''')
+    
+    # Text-to-Speech geçmişi tablosu
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS tts_history (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER,
+            text TEXT,
+            engine TEXT,
+            voice TEXT,
+            language TEXT,
+            file_path TEXT,
+            file_size INTEGER,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (user_id) REFERENCES users (id)
         )
     ''')
     
@@ -2613,6 +2671,47 @@ def root():
         'status': 'running'
     })
 
+@app.route('/api/stt/transcribe', methods=['POST'])
+@require_auth
+def stt_transcribe():
+    """Ses dosyasını yazıya çevir (Whisper large v3)"""
+    try:
+        if 'audio' not in request.files:
+            return jsonify({'error': 'audio dosyası gerekli'}), 400
+
+        audio_file = request.files['audio']
+        if audio_file.filename == '':
+            return jsonify({'error': 'Geçersiz dosya'}), 400
+
+        import tempfile
+        import mimetypes
+        suffix = '.wav'
+        guessed = mimetypes.guess_extension(audio_file.mimetype or '')
+        if guessed:
+            suffix = guessed
+        with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as tmp:
+            audio_path = tmp.name
+            audio_file.save(audio_path)
+
+        # Groq istemcisinde minimum uzunluk hatasına karşı koruma
+        with open(audio_path, 'rb') as f:
+            result = client.audio.transcriptions.create(
+                model="whisper-large-v3",
+                file=f,
+                # Güvenli varsayılanlar
+                response_format="json",
+                temperature=0
+            )
+
+        text = getattr(result, 'text', None) or (result.get('text') if isinstance(result, dict) else None)
+        if not text:
+            return jsonify({'error': 'Transkripsiyon başarısız'}), 500
+
+        return jsonify({'success': True, 'text': text})
+    except Exception as e:
+        logger.error(f"STT error: {str(e)} - IP: {request.remote_addr}")
+        return jsonify({'error': str(e)}), 500
+
 @app.errorhandler(404)
 def not_found(error):
     """Handle 404 errors"""
@@ -3310,6 +3409,441 @@ def delete_image_analysis(analysis_id):
         
     except Exception as e:
         logger.error(f"Image deletion error: {str(e)} - user_id={user_id}, username={username} - IP: {request.remote_addr}")
+        return jsonify({'error': str(e)}), 500
+
+# ============================================================================
+# TEXT-TO-SPEECH (TTS) FONKSİYONLARI
+# ============================================================================
+
+def get_available_tts_voices():
+    """Kullanılabilir TTS seslerini getir"""
+    if not TTS_AVAILABLE:
+        return {}
+    
+    voices = {
+        'gtts': {
+            'tr': 'tr',  # Türkçe
+            'en': 'en',  # İngilizce
+            'de': 'de',  # Almanca
+            'fr': 'fr',  # Fransızca
+            'es': 'es',  # İspanyolca
+            'it': 'it',  # İtalyanca
+            'pt': 'pt',  # Portekizce
+            'ru': 'ru',  # Rusça
+            'ja': 'ja',  # Japonca
+            'ko': 'ko',  # Korece
+            'zh': 'zh',  # Çince
+            'ar': 'ar',  # Arapça
+            'hi': 'hi',  # Hintçe
+            'nl': 'nl',  # Hollandaca
+            'pl': 'pl',  # Lehçe
+            'sv': 'sv',  # İsveççe
+            'da': 'da',  # Danca
+            'no': 'no',  # Norveççe
+            'fi': 'fi',  # Fince
+            'hu': 'hu',  # Macarca
+        } if GTTS_AVAILABLE else {},
+        'edge_tts': {
+            'tr-TR-AhmetNeural': 'Türkçe (Ahmet)',
+            'tr-TR-EmelNeural': 'Türkçe (Emel)',
+            'en-US-JennyNeural': 'İngilizce (Jenny)',
+            'en-US-GuyNeural': 'İngilizce (Guy)',
+            'en-GB-SoniaNeural': 'İngilizce (Sonia)',
+            'de-DE-KatjaNeural': 'Almanca (Katja)',
+            'de-DE-ConradNeural': 'Almanca (Conrad)',
+            'fr-FR-DeniseNeural': 'Fransızca (Denise)',
+            'fr-FR-HenriNeural': 'Fransızca (Henri)',
+            'es-ES-ElviraNeural': 'İspanyolca (Elvira)',
+            'es-ES-AlvaroNeural': 'İspanyolca (Alvaro)',
+            'it-IT-IsabellaNeural': 'İtalyanca (Isabella)',
+            'it-IT-DiegoNeural': 'İtalyanca (Diego)',
+            'pt-BR-FranciscaNeural': 'Portekizce (Francisca)',
+            'pt-BR-AntonioNeural': 'Portekizce (Antonio)',
+            'ru-RU-SvetlanaNeural': 'Rusça (Svetlana)',
+            'ru-RU-DmitryNeural': 'Rusça (Dmitry)',
+            'ja-JP-NanamiNeural': 'Japonca (Nanami)',
+            'ja-JP-KeitaNeural': 'Japonca (Keita)',
+            'ko-KR-SunHiNeural': 'Korece (SunHi)',
+            'ko-KR-InJoonNeural': 'Korece (InJoon)',
+            'zh-CN-XiaoxiaoNeural': 'Çince (Xiaoxiao)',
+            'zh-CN-YunxiNeural': 'Çince (Yunxi)',
+            'ar-SA-ZariyahNeural': 'Arapça (Zariyah)',
+            'ar-SA-HamedNeural': 'Arapça (Hamed)',
+            'hi-IN-SwaraNeural': 'Hintçe (Swara)',
+            'hi-IN-MadhurNeural': 'Hintçe (Madhur)',
+        } if EDGE_TTS_AVAILABLE else {}
+    }
+    return voices
+
+def detect_language_for_tts(text):
+    """Metin için en uygun dili algıla"""
+    try:
+        from langdetect import detect
+        return detect(text)
+    except:
+        # Basit dil algılama
+        text_lower = text.lower()
+        
+        # Türkçe karakterler
+        turkish_chars = ['ç', 'ğ', 'ı', 'ö', 'ş', 'ü']
+        if any(char in text_lower for char in turkish_chars):
+            return 'tr'
+        
+        # Almanca karakterler
+        german_chars = ['ä', 'ö', 'ü', 'ß']
+        if any(char in text_lower for char in german_chars):
+            return 'de'
+        
+        # Fransızca karakterler
+        french_chars = ['é', 'è', 'ê', 'ë', 'à', 'â', 'ï', 'î', 'ô', 'û', 'ù', 'ü', 'ç']
+        if any(char in text_lower for char in french_chars):
+            return 'fr'
+        
+        # İspanyolca karakterler
+        spanish_chars = ['ñ', 'á', 'é', 'í', 'ó', 'ú', 'ü']
+        if any(char in text_lower for char in spanish_chars):
+            return 'es'
+        
+        # Varsayılan olarak İngilizce
+        return 'en'
+
+def create_tts_audio_gtts(text, language='tr', filename=None):
+    """gTTS kullanarak ses dosyası oluştur"""
+    try:
+        if not filename:
+            filename = f"tts_{uuid.uuid4().hex[:8]}.mp3"
+        
+        # Uploads klasörünü oluştur
+        uploads_dir = os.path.join(os.getcwd(), 'uploads', 'tts')
+        os.makedirs(uploads_dir, exist_ok=True)
+        
+        file_path = os.path.join(uploads_dir, filename)
+        
+        # gTTS ile ses oluştur
+        tts = gTTS(text=text, lang=language, slow=False)
+        tts.save(file_path)
+        
+        return {
+            'success': True,
+            'file_path': file_path,
+            'filename': filename,
+            'language': language,
+            'engine': 'gtts'
+        }
+    except Exception as e:
+        logger.error(f"gTTS error: {str(e)}")
+        return {
+            'success': False,
+            'error': str(e)
+        }
+
+async def create_tts_audio_edge_tts(text, voice='tr-TR-AhmetNeural', filename=None):
+    """Edge TTS kullanarak ses dosyası oluştur"""
+    try:
+        if not filename:
+            filename = f"tts_{uuid.uuid4().hex[:8]}.mp3"
+        
+        # Uploads klasörünü oluştur
+        uploads_dir = os.path.join(os.getcwd(), 'uploads', 'tts')
+        os.makedirs(uploads_dir, exist_ok=True)
+        
+        file_path = os.path.join(uploads_dir, filename)
+        
+        # Edge TTS ile ses oluştur
+        communicate = edge_tts.Communicate(text, voice)
+        await communicate.save(file_path)
+        
+        return {
+            'success': True,
+            'file_path': file_path,
+            'filename': filename,
+            'voice': voice,
+            'engine': 'edge_tts'
+        }
+    except Exception as e:
+        logger.error(f"Edge TTS error: {str(e)}")
+        return {
+            'success': False,
+            'error': str(e)
+        }
+
+def create_tts_audio_pyttsx3(text, voice=None, filename=None):
+    """pyttsx3 kullanarak ses dosyası oluştur"""
+    try:
+        if not filename:
+            filename = f"tts_{uuid.uuid4().hex[:8]}.wav"
+        
+        # Uploads klasörünü oluştur
+        uploads_dir = os.path.join(os.getcwd(), 'uploads', 'tts')
+        os.makedirs(uploads_dir, exist_ok=True)
+        
+        file_path = os.path.join(uploads_dir, filename)
+        
+        # pyttsx3 ile ses oluştur
+        engine = pyttsx3.init()
+        
+        # Ses ayarları
+        if voice:
+            voices = engine.getProperty('voices')
+            for v in voices:
+                if voice in v.name or voice in v.id:
+                    engine.setProperty('voice', v.id)
+                    break
+        
+        # Hız ayarı
+        engine.setProperty('rate', 150)
+        
+        # Ses dosyasına kaydet
+        engine.save_to_file(text, file_path)
+        engine.runAndWait()
+        
+        return {
+            'success': True,
+            'file_path': file_path,
+            'filename': filename,
+            'voice': voice,
+            'engine': 'pyttsx3'
+        }
+    except Exception as e:
+        logger.error(f"pyttsx3 error: {str(e)}")
+        return {
+            'success': False,
+            'error': str(e)
+        }
+
+@app.route('/api/tts/voices', methods=['GET'])
+@require_auth
+def get_tts_voices():
+    """Kullanılabilir TTS seslerini getir"""
+    try:
+        voices = get_available_tts_voices()
+        return jsonify({
+            'success': True,
+            'voices': voices,
+            'tts_available': TTS_AVAILABLE
+        })
+    except Exception as e:
+        logger.error(f"TTS voices error: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/tts/generate', methods=['POST'])
+@require_auth
+@limiter.limit("20 per minute")  # Dakikada 20 TTS isteği
+def generate_tts():
+    """Text-to-Speech ses dosyası oluştur"""
+    try:
+        if not TTS_AVAILABLE:
+            return jsonify({'error': 'Text-to-Speech kütüphaneleri yüklenemedi'}), 500
+        
+        data = request.get_json()
+        text = data.get('text', '')
+        engine = data.get('engine', 'gtts')  # gtts, edge_tts, pyttsx3
+        voice = data.get('voice', '')
+        language = data.get('language', '')
+        
+        user_id = session['user_id']
+        username = session.get('username', 'unknown')
+        
+        logger.info(f"TTS request: user_id={user_id}, username={username}, engine={engine}, text_length={len(text)} - IP: {request.remote_addr}")
+        
+        if not text:
+            return jsonify({'error': 'Metin gerekli'}), 400
+        
+        if len(text) > 1000:  # Maksimum 1000 karakter
+            return jsonify({'error': 'Metin çok uzun (maksimum 1000 karakter)'}), 400
+        
+        # Dil algılama
+        if not language:
+            language = detect_language_for_tts(text)
+        
+        # Ses dosyası oluştur
+        result = None
+        
+        if engine == 'gtts':
+            if not GTTS_AVAILABLE:
+                return jsonify({'error': 'gTTS kullanılabilir değil'}), 500
+            result = create_tts_audio_gtts(text, language)
+        elif engine == 'edge_tts':
+            if not EDGE_TTS_AVAILABLE:
+                return jsonify({'error': 'Edge TTS kullanılabilir değil'}), 500
+            if not voice:
+                # Varsayılan ses seç
+                if language == 'tr':
+                    voice = 'tr-TR-AhmetNeural'
+                elif language == 'en':
+                    voice = 'en-US-JennyNeural'
+                elif language == 'de':
+                    voice = 'de-DE-KatjaNeural'
+                else:
+                    voice = 'tr-TR-AhmetNeural'
+            
+            # Async fonksiyonu çalıştır
+            try:
+                import asyncio
+                result = asyncio.run(create_tts_audio_edge_tts(text, voice))
+            except Exception as e:
+                logger.error(f"Edge TTS async error: {str(e)}")
+                return {'error': f'Edge TTS hatası: {str(e)}'}
+        elif engine == 'pyttsx3':
+            if not PYTTSX3_AVAILABLE:
+                return jsonify({'error': 'pyttsx3 kullanılabilir değil'}), 500
+            result = create_tts_audio_pyttsx3(text, voice)
+        else:
+            return jsonify({'error': 'Geçersiz TTS motoru'}), 400
+        
+        if not result or not result.get('success'):
+            error_msg = result.get('error', 'Bilinmeyen hata') if result else 'TTS oluşturulamadı'
+            return jsonify({'error': error_msg}), 500
+        
+        # Dosya boyutunu al
+        file_size = os.path.getsize(result['file_path'])
+        
+        # Veritabanına kaydet
+        conn = sqlite3.connect('chatbot.db')
+        cursor = conn.cursor()
+        
+        cursor.execute('''
+            INSERT INTO tts_history (user_id, text, engine, voice, language, file_path, file_size, created_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        ''', (
+            user_id, text, engine, voice, language, 
+            result['file_path'], file_size, datetime.now().isoformat()
+        ))
+        
+        tts_id = cursor.lastrowid
+        conn.commit()
+        conn.close()
+        
+        logger.info(f"TTS generated successfully: tts_id={tts_id}, file_path={result['file_path']}")
+        
+        return jsonify({
+            'success': True,
+            'tts_id': tts_id,
+            'file_path': result['file_path'],
+            'filename': result['filename'],
+            'engine': result['engine'],
+            'voice': result.get('voice', ''),
+            'language': result.get('language', ''),
+            'file_size': file_size
+        })
+        
+    except Exception as e:
+        logger.error(f"TTS generation error: {str(e)} - user_id={user_id}, username={username} - IP: {request.remote_addr}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/tts/download/<filename>', methods=['GET'])
+@require_auth
+def download_tts_file(filename):
+    """TTS ses dosyasını indir"""
+    try:
+        user_id = session['user_id']
+        
+        # Dosya yolunu kontrol et
+        file_path = os.path.join(os.getcwd(), 'uploads', 'tts', filename)
+        
+        if not os.path.exists(file_path):
+            return jsonify({'error': 'Dosya bulunamadı'}), 404
+        
+        # Dosyanın bu kullanıcıya ait olduğunu kontrol et
+        conn = sqlite3.connect('chatbot.db')
+        cursor = conn.cursor()
+        cursor.execute(
+            'SELECT id FROM tts_history WHERE user_id = ? AND file_path LIKE ?',
+            (user_id, f'%{filename}')
+        )
+        tts_record = cursor.fetchone()
+        conn.close()
+        
+        if not tts_record:
+            return jsonify({'error': 'Bu dosyaya erişim izniniz yok'}), 403
+        
+        # Dosyayı gönder
+        return send_file(file_path, as_attachment=True, download_name=filename)
+        
+    except Exception as e:
+        logger.error(f"TTS download error: {str(e)} - user_id={user_id} - IP: {request.remote_addr}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/tts/history', methods=['GET'])
+@require_auth
+def get_tts_history():
+    """Kullanıcının TTS geçmişini getir"""
+    try:
+        user_id = session['user_id']
+        
+        conn = sqlite3.connect('chatbot.db')
+        cursor = conn.cursor()
+        
+        cursor.execute('''
+            SELECT id, text, engine, voice, language, file_path, file_size, created_at
+            FROM tts_history 
+            WHERE user_id = ?
+            ORDER BY created_at DESC
+            LIMIT 50
+        ''', (user_id,))
+        
+        history = cursor.fetchall()
+        conn.close()
+        
+        history_list = []
+        for row in history:
+            filename = os.path.basename(row[5]) if row[5] else ''
+            history_list.append({
+                'id': row[0],
+                'text': row[1],
+                'engine': row[2],
+                'voice': row[3],
+                'language': row[4],
+                'filename': filename,
+                'file_size': row[6],
+                'created_at': row[7]
+            })
+        
+        return jsonify({'history': history_list})
+        
+    except Exception as e:
+        logger.error(f"TTS history error: {str(e)} - user_id={user_id} - IP: {request.remote_addr}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/tts/<int:tts_id>', methods=['DELETE'])
+@require_auth
+def delete_tts_file(tts_id):
+    """TTS dosyasını sil"""
+    try:
+        user_id = session['user_id']
+        username = session.get('username', 'unknown')
+        
+        conn = sqlite3.connect('chatbot.db')
+        cursor = conn.cursor()
+        
+        # TTS bilgilerini al
+        cursor.execute('''
+            SELECT file_path FROM tts_history 
+            WHERE id = ? AND user_id = ?
+        ''', (tts_id, user_id))
+        
+        tts_data = cursor.fetchone()
+        if not tts_data:
+            conn.close()
+            return jsonify({'error': 'TTS kaydı bulunamadı'}), 404
+        
+        file_path = tts_data[0]
+        
+        # Dosyayı sil
+        if os.path.exists(file_path):
+            os.remove(file_path)
+        
+        # Veritabanından sil
+        cursor.execute('DELETE FROM tts_history WHERE id = ?', (tts_id,))
+        conn.commit()
+        conn.close()
+        
+        logger.info(f"TTS file deleted: user_id={user_id}, username={username}, tts_id={tts_id} - IP: {request.remote_addr}")
+        
+        return jsonify({'success': True, 'message': 'TTS dosyası silindi'})
+        
+    except Exception as e:
+        logger.error(f"TTS deletion error: {str(e)} - user_id={user_id}, username={username} - IP: {request.remote_addr}")
         return jsonify({'error': str(e)}), 500
 
 if __name__ == '__main__':

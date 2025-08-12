@@ -10,6 +10,12 @@ import random
 import langdetect
 import pandas as pd
 import os
+import time
+try:
+    from audio_recorder_streamlit import audio_recorder
+    AUDIO_RECORDER_AVAILABLE = True
+except Exception:
+    AUDIO_RECORDER_AVAILABLE = False
 from langdetect import detect, DetectorFactory
 
 # Sayfa konfigürasyonu
@@ -3116,6 +3122,18 @@ if not is_authenticated:
                     if register_user(register_username, register_password, register_email):
                         st.experimental_rerun()
 
+    # API URL ayarı (giriş ekranında da göster)
+    st.markdown("---")
+    st.markdown("## ⚙️ Ayarlar")
+    api_url_input = st.text_input(
+        "API URL",
+        value=st.session_state.get("api_url", os.environ.get('BACKEND_API_URL', 'http://localhost:5002/api')),
+        help="Backend API temel adresi"
+    )
+    if api_url_input and api_url_input != st.session_state.get("api_url"):
+        st.session_state.api_url = api_url_input
+        st.success("API URL güncellendi!")
+
     # API durumu kontrolü
     st.markdown("---")
     st.markdown("## 📊 API Durumu")
@@ -4094,17 +4112,47 @@ else:
                 st.session_state.quality_threshold = threshold
                 st.sidebar.success(f"✅ Kalite eşiği: {threshold}")
 
+    # Session state başlatma
+    if 'show_tts_interface' not in st.session_state:
+        st.session_state.show_tts_interface = False
+
+    if 'show_file_summary' not in st.session_state:
+        st.session_state.show_file_summary = False
+
+    if 'tts_text' not in st.session_state:
+        st.session_state.tts_text = ''
+
     # Ana chat arayüzü - Sayfanın başında
     st.markdown("## 💬 AI Chatbot")
 
-    # Resim analizi ve dosya özetleme butonları
-    col1, col2 = st.columns(2)
+    # Resim analizi, TTS ve dosya özetleme butonları
+    col1, col2, col3 = st.columns(3)
     with col1:
         if st.button("🖼️ Resim Analizi", use_container_width=True):
-            show_image_analysis_interface()
+            # Toggle davranışı: açık ise kapat, kapalı ise aç
+            current = st.session_state.get('show_image_analysis', False)
+            st.session_state.show_image_analysis = not current
+            # Diğerlerini kapat
+            if st.session_state.show_image_analysis:
+                st.session_state.show_tts_interface = False
+                st.session_state.show_file_summary = False
     with col2:
+        if st.button("🔊 Text-to-Speech", use_container_width=True):
+            st.session_state.show_tts_interface = not st.session_state.get('show_tts_interface', False)
+            if st.session_state.show_tts_interface:
+                st.session_state.show_file_summary = False
+                st.session_state.show_image_analysis = False
+    with col3:
         if st.button("🗂️ Dosya Yükle & Özetle", use_container_width=True):
-            st.session_state.show_file_summary = True
+            st.session_state.show_file_summary = not st.session_state.get('show_file_summary', False)
+            if st.session_state.show_file_summary:
+                st.session_state.show_tts_interface = False
+                st.session_state.show_image_analysis = False
+
+    
+    # Resim analizi arayüzü
+    if st.session_state.get('show_image_analysis', False):
+        show_image_analysis_interface()
 
     # Dosya özetleme arayüzü
     if st.session_state.get('show_file_summary', False):
@@ -4223,7 +4271,7 @@ else:
                     st.button("✏️ Düzenle", key=f"edit_{i}", help="Bu mesajı düzenle", on_click=lambda idx=i, content=message["content"]: set_edit_state(idx, content))
                 elif message["role"] == "assistant":
                     # Bot mesajları için butonlar
-                    col1, col2, col3 = st.columns([1, 1, 6])
+                    col1, col2, col3, col4 = st.columns([1, 1, 1, 5])
                     
                     with col1:
                         # Bu bot mesajını tekrar oluştur butonu
@@ -4246,6 +4294,14 @@ else:
                                 st.info("📋")
                     
                     with col3:
+                        # TTS butonu (küçük)
+                        if st.button("🔊", key=f"tts_{i}", help="Bu yanıtı sese çevir", use_container_width=True):
+                            # TTS arayüzünü aç ve metni otomatik doldur
+                            st.session_state.show_tts_interface = True
+                            st.session_state.tts_text = message["content"]
+                            st.rerun()
+                    
+                    with col4:
                         # Boş alan
                         st.markdown("")
 
@@ -4284,7 +4340,45 @@ else:
         if hasattr(st.session_state, 'auto_process_edit'):
             del st.session_state.auto_process_edit
     else:
+        # chat_input üst seviye konteynerde olmalı; önce mikrofonu ayrı satırda koy
+        recorded_audio = None
+        if AUDIO_RECORDER_AVAILABLE:
+            # Grace süresi başlat (ilk render anı)
+            if 'stt_grace_start' not in st.session_state:
+                st.session_state.stt_grace_start = time.time()
+            recorded_audio = audio_recorder(text="" , icon_size="2x")
+        # Ardından chat input'u tek başına çağır
         prompt = st.chat_input("Mesajınızı yazın...")
+
+        # Ses verisi varsa STT'ye gönder ve otomatik gönderim hazırla
+        if AUDIO_RECORDER_AVAILABLE and recorded_audio:
+            # Çok kısa kayıtları gönderme (Safari'de anında kapanabilir)
+            if len(recorded_audio) < 8000:  # ~8KB altı genellikle <0.2s
+                # İlk 5 saniyede uyarma
+                if time.time() - st.session_state.get('stt_grace_start', time.time()) >= 5:
+                    st.warning("Kayıt çok kısa algılandı. Mikrofona tıklayıp 1-2 saniye konuşun, sonra tekrar tıklayıp kaydı durdurun.")
+            else:
+                try:
+                    files = { 'audio': ('speech.wav', recorded_audio, 'audio/wav') }
+                    resp = requests.post(
+                        f"{st.session_state.api_url}/stt/transcribe",
+                        files=files,
+                        timeout=60,
+                        cookies=st.session_state.get('cookies', {})
+                    )
+                    if resp.status_code == 200:
+                        stt_text = resp.json().get('text', '')
+                        if stt_text:
+                            st.session_state.auto_send_message = stt_text
+                            # Grace süresini sıfırla
+                            if 'stt_grace_start' in st.session_state:
+                                del st.session_state.stt_grace_start
+                            st.rerun()
+                    else:
+                        err = resp.json().get('error') if resp.headers.get('content-type','').startswith('application/json') else None
+                        st.warning(f"Konuşma metne çevrilemedi{': ' + err if err else ''}")
+                except Exception as _e:
+                    st.warning(f"STT hatası: {_e}")
     
     if prompt:
         # Dil algılama (gizli)
@@ -4454,4 +4548,301 @@ else:
     if st.session_state.get('auto_scroll', False):
         st.markdown("<br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br>", unsafe_allow_html=True)
         st.session_state.auto_scroll = False
-          # Ana chat arayüzü zaten yukarıda tanımlandı
+
+# ============================================================================
+# TEXT-TO-SPEECH (TTS) FONKSİYONLARI
+# ============================================================================
+
+def get_tts_voices():
+    """Kullanılabilir TTS seslerini getir"""
+    try:
+        response = requests.get(
+            f"{st.session_state.api_url}/tts/voices",
+            timeout=5,
+            cookies=st.session_state.get('cookies', {})
+        )
+        if response.status_code == 200:
+            return response.json()
+        else:
+            return None
+    except Exception as e:
+        st.error(f"TTS sesleri alınamadı: {str(e)}")
+        return None
+
+def generate_tts_audio(text, engine='gtts', voice='', language=''):
+    """TTS ses dosyası oluştur"""
+    try:
+        data = {
+            'text': text,
+            'engine': engine,
+            'voice': voice,
+            'language': language
+        }
+        
+        response = requests.post(
+            f"{st.session_state.api_url}/tts/generate",
+            json=data,
+            timeout=30,
+            cookies=st.session_state.get('cookies', {})
+        )
+        
+        if response.status_code == 200:
+            return response.json()
+        else:
+            error_data = response.json()
+            return {'error': error_data.get('error', 'TTS oluşturulamadı')}
+    except Exception as e:
+        return {'error': f'TTS hatası: {str(e)}'}
+
+def download_tts_file(filename):
+    """TTS ses dosyasını indir"""
+    try:
+        response = requests.get(
+            f"{st.session_state.api_url}/tts/download/{filename}",
+            cookies=st.session_state.get('cookies', {}),
+            stream=True
+        )
+        
+        if response.status_code == 200:
+            return response.content
+        else:
+            return None
+    except Exception as e:
+        st.error(f"TTS dosyası indirilemedi: {str(e)}")
+        return None
+
+def get_tts_history():
+    """TTS geçmişini getir"""
+    try:
+        response = requests.get(
+            f"{st.session_state.api_url}/tts/history",
+            timeout=5,
+            cookies=st.session_state.get('cookies', {})
+        )
+        
+        if response.status_code == 200:
+            return response.json()
+        else:
+            return {'history': []}
+    except Exception as e:
+        return {'history': []}
+
+def delete_tts_file(tts_id):
+    """TTS dosyasını sil"""
+    try:
+        response = requests.delete(
+            f"{st.session_state.api_url}/tts/{tts_id}",
+            timeout=5,
+            cookies=st.session_state.get('cookies', {})
+        )
+        
+        if response.status_code == 200:
+            return True
+        else:
+            return False
+    except Exception as e:
+        st.error(f"TTS dosyası silinemedi: {str(e)}")
+        return False
+
+def format_file_size(size_bytes):
+    """Dosya boyutunu formatla"""
+    if size_bytes == 0:
+        return "0 B"
+    
+    size_names = ["B", "KB", "MB", "GB"]
+    i = 0
+    while size_bytes >= 1024 and i < len(size_names) - 1:
+        size_bytes /= 1024.0
+        i += 1
+    
+    return f"{size_bytes:.1f} {size_names[i]}"
+
+def show_tts_interface():
+    """Text-to-Speech arayüzünü göster"""
+    st.markdown("## 🔊 Text-to-Speech")
+    st.markdown("Metni sese çevirin ve dinleyin!")
+    
+    # TTS seslerini al
+    voices_data = get_tts_voices()
+    
+    if not voices_data or not voices_data.get('tts_available', False):
+        st.error("❌ Text-to-Speech özelliği kullanılamıyor")
+        gtts_ok = voices_data.get('voices', {}).get('gtts') is not None if voices_data else False
+        edge_ok = voices_data.get('voices', {}).get('edge_tts') is not None if voices_data else False
+        details = []
+        if gtts_ok:
+            details.append("gTTS mevcut")
+        if edge_ok:
+            details.append("Edge TTS mevcut")
+        if details:
+            st.info(", ".join(details))
+        else:
+            st.info("TTS kütüphaneleri yüklenemedi. Lütfen backend'i kontrol edin.")
+        return
+    
+    # TTS motoru seçimi
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        engine = st.selectbox(
+            "TTS Motoru",
+            options=['gtts', 'edge_tts', 'pyttsx3'],
+            format_func=lambda x: {
+                'gtts': 'Google TTS (gTTS)',
+                'edge_tts': 'Microsoft Edge TTS',
+                'pyttsx3': 'pyttsx3 (Yerel)'
+            }.get(x, x),
+            help="Kullanılacak TTS motorunu seçin"
+        )
+    
+    with col2:
+        # Motor'a göre ses seçenekleri
+        if engine == 'gtts':
+            voices = voices_data.get('voices', {}).get('gtts', {})
+            voice_options = list(voices.keys())
+            voice_names = list(voices.values())
+            
+            selected_voice = st.selectbox(
+                "Dil",
+                options=voice_options,
+                format_func=lambda x: voices.get(x, x),
+                help="Ses dosyasının dili"
+            )
+            language = selected_voice
+            voice = ''
+            
+        elif engine == 'edge_tts':
+            voices = voices_data.get('voices', {}).get('edge_tts', {})
+            voice_options = list(voices.keys())
+            voice_names = list(voices.values())
+            
+            selected_voice = st.selectbox(
+                "Ses",
+                options=voice_options,
+                format_func=lambda x: voices.get(x, x),
+                help="Kullanılacak ses"
+            )
+            voice = selected_voice
+            language = ''
+            
+        else:  # pyttsx3
+            voice = st.text_input(
+                "Ses Adı (Opsiyonel)",
+                placeholder="Sistem ses adı",
+                help="Sistem ses adını girin (boş bırakılırsa varsayılan ses kullanılır)"
+            )
+            language = ''
+    
+    # Metin girişi
+    # Otomatik doldurulacak metin varsa onu kullan
+    default_text = st.session_state.get('tts_text', '')
+    if default_text:
+        # Metni temizle
+        del st.session_state.tts_text
+    
+    text_input = st.text_area(
+        "Metin",
+        value=default_text,
+        placeholder="Sese çevrilecek metni buraya yazın...",
+        height=150,
+        max_chars=1000,
+        help="Maksimum 1000 karakter"
+    )
+    
+    # Karakter sayısı
+    char_count = len(text_input) if text_input else 0
+    st.caption(f"Karakter sayısı: {char_count}/1000")
+    
+    # TTS oluştur butonu
+    if st.button("🔊 Ses Oluştur", type="primary", use_container_width=True, disabled=not text_input):
+        if text_input:
+            with st.spinner("Ses dosyası oluşturuluyor..."):
+                result = generate_tts_audio(text_input, engine, voice, language)
+                
+                if 'error' in result:
+                    st.error(f"❌ Hata: {result['error']}")
+                else:
+                    st.success("✅ Ses dosyası oluşturuldu!")
+                    
+                    # Ses dosyasını göster
+                    col1, col2 = st.columns([3, 1])
+                    
+                    with col1:
+                        st.markdown("### 📁 Oluşturulan Ses Dosyası")
+                        st.info(f"**Dosya:** {result['filename']}")
+                        st.info(f"**Motor:** {result['engine']}")
+                        if result.get('voice'):
+                            st.info(f"**Ses:** {result['voice']}")
+                        if result.get('language'):
+                            st.info(f"**Dil:** {result['language']}")
+                        st.info(f"**Boyut:** {format_file_size(result['file_size'])}")
+                    
+                    with col2:
+                        # İndirme butonu
+                        audio_data = download_tts_file(result['filename'])
+                        if audio_data:
+                            st.download_button(
+                                label="📥 İndir",
+                                data=audio_data,
+                                file_name=result['filename'],
+                                mime="audio/mpeg",
+                                use_container_width=True
+                            )
+                        
+                        # Oynatma butonu (eğer tarayıcı destekliyorsa)
+                        if audio_data:
+                            st.audio(audio_data, format="audio/mpeg")
+    
+    # TTS geçmişi
+    st.markdown("---")
+    st.markdown("### 📚 TTS Geçmişi")
+    
+    history_data = get_tts_history()
+    if history_data.get('history'):
+        for item in history_data['history']:
+            with st.expander(f"🔊 {item['text'][:50]}... - {item['engine']}", expanded=False):
+                col1, col2 = st.columns([3, 1])
+                
+                with col1:
+                    st.markdown(f"**Metin:** {item['text']}")
+                    st.markdown(f"**Motor:** {item['engine']}")
+                    if item.get('voice'):
+                        st.markdown(f"**Ses:** {item['voice']}")
+                    if item.get('language'):
+                        st.markdown(f"**Dil:** {item['language']}")
+                    st.markdown(f"**Boyut:** {format_file_size(item['file_size'])}")
+                    st.markdown(f"**Tarih:** {item['created_at']}")
+                
+                with col2:
+                    # İndirme butonu
+                    audio_data = download_tts_file(item['filename'])
+                    if audio_data:
+                        st.download_button(
+                            label="📥 İndir",
+                            data=audio_data,
+                            file_name=item['filename'],
+                            mime="audio/mpeg",
+                            key=f"download_{item['id']}"
+                        )
+                        
+                        # Oynatma
+                        st.audio(audio_data, format="audio/mpeg")
+                    
+                    # Silme butonu
+                    if st.button("🗑️ Sil", key=f"delete_{item['id']}"):
+                        if delete_tts_file(item['id']):
+                            st.success("✅ Silindi!")
+                            st.rerun()
+                        else:
+                            st.error("❌ Silme başarısız!")
+    else:
+        st.info("Henüz TTS geçmişi yok.")
+
+# Ana chat arayüzü zaten yukarıda tanımlandı
+
+# TTS arayüzü çağrısı (fonksiyon tanımından SONRA)
+if st.session_state.get('show_tts_interface', False):
+    show_tts_interface()
+    if st.button("Kapat", key="close_tts_interface", use_container_width=True):
+        st.session_state.show_tts_interface = False
+        st.rerun()

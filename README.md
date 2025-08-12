@@ -21,6 +21,7 @@ Bu proje, Groq API kullanarak ChatGPT benzeri bir chatbot uygulamasıdır. Backe
 - **🔍 Kalite Kontrolü**: Yanıt kalitesini kontrol etme
 - **📱 Responsive Tasarım**: Mobil ve masaüstü uyumlu
 - **🖼️ Resim Analizi**: AI destekli resim analizi ve açıklama
+- **🔊 Text-to-Speech**: Metni sese çevirme özelliği (gTTS, Edge TTS, pyttsx3)
 - **🗑️ Hesap Silme**: Kullanıcıların kendi hesaplarını kalıcı olarak silme
 - **🐳 Docker Desteği**: Kapsamlı Docker kurulumu (PostgreSQL, Redis, Nginx, Monitoring)
 - **📊 Monitoring**: Prometheus ve Grafana ile sistem izleme
@@ -176,6 +177,9 @@ docker-compose down -v
 5. **Sohbet Oturumları** bölümünden mevcut oturumları görüntüleyin veya yeni oturum oluşturun
 6. Chat kutusuna sorunuzu yazın ve Enter'a basın
 7. AI'dan yanıtınızı alın!
+8. **🔊 Text-to-Speech**: Bot yanıtlarını sese çevirmek için "🔊" butonunu kullanın
+9. **🖼️ Resim Analizi**: Resim yükleyip AI ile analiz edin
+10. **🗂️ Dosya Özetleme**: PDF, TXT, DOCX dosyalarını yükleyip özetleyin
 
 ### 🔐 Kullanıcı Kimlik Doğrulama
 
@@ -194,6 +198,16 @@ docker-compose down -v
 - **Oturum Silme**: Oturum yanındaki "🗑️" butonuna tıklayarak oturumu silin
 - **Oturum Yenileme**: "🔄 Oturumları Yenile" butonu ile listeyi güncelleyin
 - **Kişisel Geçmiş**: Her kullanıcı sadece kendi sohbet geçmişini görebilir
+
+### 🔊 Text-to-Speech (TTS) Özelliği
+
+- **Çoklu TTS Motoru**: gTTS (Google), Edge TTS (Microsoft), pyttsx3 (Yerel) desteği
+- **Çoklu Dil**: 100+ dilde ses oluşturma
+- **Otomatik Dil Algılama**: Metin diline göre otomatik ses seçimi
+- **Ses İndirme**: Oluşturulan ses dosyalarını MP3 formatında indirme
+- **Geçmiş Yönetimi**: TTS geçmişini görüntüleme ve silme
+- **Bot Yanıtları**: Bot yanıtlarını tek tıkla sese çevirme
+- **Özelleştirilebilir**: Ses hızı, motor seçimi, dil seçimi
 
 ## 📁 Proje Yapısı
 
