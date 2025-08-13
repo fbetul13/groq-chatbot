@@ -1527,6 +1527,10 @@ def process_markdown_and_emoji(text):
     
     # Satır içi kod bloklarını da sakla
     text = re.sub(r'`[^`]+`', save_code_block, text)
+
+    # Yer tutucuları Markdown tarafından kalın (__) olarak yorumlanmaması için koru
+    # Örn: __CODE_BLOCK_0__ -> PLACEHOLDER_CODE_BLOCK_0
+    text = re.sub(r"__CODE_BLOCK_(\d+)__", r"PLACEHOLDER_CODE_BLOCK_\1", text)
     
     try:
         import markdown
@@ -1703,6 +1707,10 @@ def process_markdown_and_emoji(text):
         text = text.replace('\n', '<br>')
         
         html = text
+
+    # Markdown sonrası yer tutucuları eski haline döndür
+    # PLACEHOLDER_CODE_BLOCK_0 -> __CODE_BLOCK_0__
+    html = re.sub(r"PLACEHOLDER_CODE_BLOCK_(\d+)", r"__CODE_BLOCK_\1__", html)
     
     # Kod bloklarını geri yükle (işlenmemiş olarak)
     for i, code_block in enumerate(code_blocks):
