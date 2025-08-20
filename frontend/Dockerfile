@@ -10,6 +10,7 @@ ENV STREAMLIT_SERVER_ADDRESS=0.0.0.0
 # Install system dependencies
 RUN apt-get update && apt-get install -y \
     curl \
+    xclip \
     && rm -rf /var/lib/apt/lists/*
 
 # Create app directory

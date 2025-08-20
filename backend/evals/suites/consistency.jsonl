@@ -1,0 +1,4 @@
+{"id":"CC01","category":"math","type":"numeric","prompt":"24 ÷ 3 işleminin sonucunu tek sayı olarak ver.","reference_answer":"8"}
+{"id":"CC02","category":"math","type":"numeric","prompt":"Üç eş parça halinde 24 sayısının her bir parçanın değeri nedir?","reference_answer":"8"}
+{"id":"CC03","category":"math","type":"numeric","prompt":"Sekiz ile üçün çarpımını tek sayı olarak ver.","reference_answer":"24"}
+{"id":"CC04","category":"math","type":"numeric","prompt":"3 × 8 işleminin sonucu nedir?","reference_answer":"24"}

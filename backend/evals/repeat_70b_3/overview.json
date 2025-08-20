@@ -1,0 +1,13 @@
+{
+  "models": [
+    {
+      "model": "llama-3.3-70b-versatile",
+      "totals": {
+        "math": 5,
+        "turkish": 10,
+        "coding": 8
+      },
+      "avg_latency_sec": 2.154
+    }
+  ]
+}

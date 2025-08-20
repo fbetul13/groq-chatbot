@@ -1,0 +1,22 @@
+{
+  "models": [
+    {
+      "model": "llama-3.1-8b-instant",
+      "totals": {
+        "math": 0,
+        "turkish": 4,
+        "coding": 0
+      },
+      "avg_latency_sec": 0.543
+    },
+    {
+      "model": "llama-3.3-70b-versatile",
+      "totals": {
+        "math": 0,
+        "turkish": 6,
+        "coding": 0
+      },
+      "avg_latency_sec": 0.324
+    }
+  ]
+}

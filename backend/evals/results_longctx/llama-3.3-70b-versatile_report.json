@@ -1,0 +1,132 @@
+{
+  "totals": {
+    "math": 9,
+    "turkish": 0,
+    "coding": 0
+  },
+  "details": [
+    {
+      "id": "LC01",
+      "category": "math",
+      "expected": "iğne",
+      "got": "İğne",
+      "correct": false
+    },
+    {
+      "id": "LC02",
+      "category": "math",
+      "expected": "serinlik",
+      "got": "serinlik",
+      "correct": true
+    },
+    {
+      "id": "LC03",
+      "category": "math",
+      "expected": "ZX-42-TR",
+      "got": "ZX-42-TR",
+      "correct": true
+    },
+    {
+      "id": "LC04",
+      "category": "math",
+      "expected": "kıvılcım",
+      "got": "Kıvılcım",
+      "correct": true
+    },
+    {
+      "id": "LC05",
+      "category": "math",
+      "expected": "merkez",
+      "got": "merkez",
+      "correct": true
+    },
+    {
+      "id": "LC06",
+      "category": "math",
+      "expected": "9F-AX",
+      "got": "9F-AX",
+      "correct": true
+    },
+    {
+      "id": "LC07",
+      "category": "math",
+      "expected": "karanfil",
+      "got": "karanfil",
+      "correct": true
+    },
+    {
+      "id": "LC08",
+      "category": "math",
+      "expected": "doğa",
+      "got": "doğa",
+      "correct": true
+    },
+    {
+      "id": "LC09",
+      "category": "math",
+      "expected": "ALFA-01",
+      "got": "ALFA-01",
+      "correct": true
+    },
+    {
+      "id": "LC10",
+      "category": "math",
+      "expected": "ışık",
+      "got": "ışık",
+      "correct": true
+    }
+  ],
+  "model": "llama-3.3-70b-versatile",
+  "timings": [
+    {
+      "id": "LC01",
+      "category": "math",
+      "latency_sec": 0.17026114463806152
+    },
+    {
+      "id": "LC02",
+      "category": "math",
+      "latency_sec": 0.16405701637268066
+    },
+    {
+      "id": "LC03",
+      "category": "math",
+      "latency_sec": 0.2672560214996338
+    },
+    {
+      "id": "LC04",
+      "category": "math",
+      "latency_sec": 0.16368389129638672
+    },
+    {
+      "id": "LC05",
+      "category": "math",
+      "latency_sec": 0.16392278671264648
+    },
+    {
+      "id": "LC06",
+      "category": "math",
+      "latency_sec": 0.200242280960083
+    },
+    {
+      "id": "LC07",
+      "category": "math",
+      "latency_sec": 0.17602992057800293
+    },
+    {
+      "id": "LC08",
+      "category": "math",
+      "latency_sec": 0.19389009475708008
+    },
+    {
+      "id": "LC09",
+      "category": "math",
+      "latency_sec": 0.1691272258758545
+    },
+    {
+      "id": "LC10",
+      "category": "math",
+      "latency_sec": 0.15454792976379395
+    }
+  ]
+}

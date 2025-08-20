@@ -1,0 +1,72 @@
+{
+  "totals": {
+    "math": 0,
+    "turkish": 2,
+    "coding": 0
+  },
+  "details": [
+    {
+      "id": "DS01",
+      "category": "math",
+      "expected": "280000",
+      "got": "312500",
+      "correct": false
+    },
+    {
+      "id": "DS02",
+      "category": "math",
+      "expected": "540",
+      "got": "(1 + 0.20) * 500 * 0.90 = 540",
+      "correct": false
+    },
+    {
+      "id": "DS03",
+      "category": "turkish",
+      "expected": "C",
+      "got": "C) Bu film çok güzeldi.",
+      "correct": true
+    },
+    {
+      "id": "DS04",
+      "category": "turkish",
+      "expected": "B",
+      "got": "B) Kitabı okudu.",
+      "correct": true
+    },
+    {
+      "id": "DS05",
+      "category": "math",
+      "expected": "13000",
+      "got": "10000 * (1 + 0.15/1)^2 = 11561/125",
+      "correct": false
+    }
+  ],
+  "model": "llama-3.1-8b-instant",
+  "timings": [
+    {
+      "id": "DS01",
+      "category": "math",
+      "latency_sec": 0.23105096817016602
+    },
+    {
+      "id": "DS02",
+      "category": "math",
+      "latency_sec": 0.2548520565032959
+    },
+    {
+      "id": "DS03",
+      "category": "turkish",
+      "latency_sec": 0.191849946975708
+    },
+    {
+      "id": "DS04",
+      "category": "turkish",
+      "latency_sec": 0.16870403289794922
+    },
+    {
+      "id": "DS05",
+      "category": "math",
+      "latency_sec": 0.21365094184875488
+    }
+  ]
+}

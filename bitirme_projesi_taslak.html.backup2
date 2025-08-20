@@ -1,0 +1,455 @@
+
+    <!DOCTYPE html>
+    <html lang="tr">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Bitirme Projesi Taslağı</title>
+        <style>
+            @page {
+                margin: 2cm;
+                size: A4;
+            }
+            
+            body {
+                font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+                line-height: 1.6;
+                margin: 0;
+                padding: 20px;
+                font-size: 12pt;
+                color: #333;
+                background-color: white;
+            }
+            
+            h1 {
+                color: #2c3e50;
+                border-bottom: 3px solid #3498db;
+                padding-bottom: 10px;
+                margin-top: 30px;
+                margin-bottom: 20px;
+                page-break-after: avoid;
+                font-size: 24pt;
+            }
+            
+            h2 {
+                color: #34495e;
+                border-bottom: 2px solid #ecf0f1;
+                padding-bottom: 8px;
+                margin-top: 25px;
+                margin-bottom: 15px;
+                page-break-after: avoid;
+                font-size: 18pt;
+            }
+            
+            h3 {
+                color: #7f8c8d;
+                margin-top: 20px;
+                margin-bottom: 10px;
+                font-size: 14pt;
+            }
+            
+            h4 {
+                color: #95a5a6;
+                margin-top: 15px;
+                margin-bottom: 8px;
+                font-size: 12pt;
+            }
+            
+            p {
+                margin-bottom: 12px;
+                text-align: justify;
+            }
+            
+            ul, ol {
+                margin-bottom: 15px;
+                padding-left: 25px;
+            }
+            
+            li {
+                margin-bottom: 5px;
+            }
+            
+            table {
+                border-collapse: collapse;
+                width: 100%;
+                margin: 20px 0;
+                font-size: 11pt;
+            }
+            
+            th, td {
+                border: 1px solid #ddd;
+                padding: 10px;
+                text-align: left;
+                vertical-align: top;
+            }
+            
+            th {
+                background-color: #f8f9fa;
+                font-weight: bold;
+                color: #2c3e50;
+            }
+            
+            tr:nth-child(even) {
+                background-color: #f8f9fa;
+            }
+            
+            code {
+                background-color: #f8f9fa;
+                padding: 2px 6px;
+                border-radius: 3px;
+                font-family: 'Courier New', monospace;
+                font-size: 11pt;
+                color: #e74c3c;
+            }
+            
+            pre {
+                background-color: #f8f9fa;
+                padding: 15px;
+                border-radius: 5px;
+                overflow-x: auto;
+                border-left: 4px solid #3498db;
+                margin: 15px 0;
+                font-family: 'Courier New', monospace;
+                font-size: 11pt;
+            }
+            
+            pre code {
+                background-color: transparent;
+                padding: 0;
+                color: #333;
+            }
+            
+            blockquote {
+                border-left: 4px solid #3498db;
+                margin: 15px 0;
+                padding: 10px 20px;
+                background-color: #f8f9fa;
+                font-style: italic;
+            }
+            
+            .placeholder {
+                color: #7f8c8d;
+                font-style: italic;
+                background-color: #f8f9fa;
+                padding: 5px;
+                border-radius: 3px;
+            }
+            
+            .page-break {
+                page-break-before: always;
+            }
+            
+            .no-break {
+                page-break-inside: avoid;
+            }
+            
+            /* Başlık sayfası için özel stiller */
+            .title-page {
+                text-align: center;
+                page-break-after: always;
+                margin-top: 100px;
+            }
+            
+            .title-page h1 {
+                font-size: 28pt;
+                margin-bottom: 30px;
+                border: none;
+            }
+            
+            .title-page .subtitle {
+                font-size: 16pt;
+                color: #7f8c8d;
+                margin-bottom: 50px;
+            }
+            
+            .title-page .info {
+                font-size: 14pt;
+                margin-bottom: 20px;
+            }
+            
+            /* Yazdırma için özel stiller */
+            @media print {
+                body {
+                    margin: 0;
+                    padding: 0;
+                }
+                
+                .no-print {
+                    display: none;
+                }
+                
+                h1, h2, h3 {
+                    page-break-after: avoid;
+                }
+                
+                table {
+                    page-break-inside: avoid;
+                }
+            }
+            
+            /* Ekran için navigasyon */
+            .nav {
+                position: fixed;
+                top: 0;
+                left: 0;
+                right: 0;
+                background-color: #2c3e50;
+                color: white;
+                padding: 10px;
+                text-align: center;
+                z-index: 1000;
+            }
+            
+            .nav button {
+                background-color: #3498db;
+                color: white;
+                border: none;
+                padding: 8px 15px;
+                margin: 0 5px;
+                border-radius: 3px;
+                cursor: pointer;
+            }
+            
+            .nav button:hover {
+                background-color: #2980b9;
+            }
+            
+            .content {
+                margin-top: 60px;
+            }
+        </style>
+    </head>
+    <body>
+        <div class="nav no-print">
+            <button onclick="window.print()">🖨️ PDF Olarak Yazdır</button>
+            <button onclick="window.open('', '_blank').print()">📄 Yeni Pencerede Yazdır</button>
+            <button onclick="downloadPDF()">💾 PDF İndir</button>
+        </div>
+        
+        <div class="content">
+            <h2 id="kapak-bilgileri">Kapak Bilgileri</h2>
+<ul>
+<li><strong>Üniversite/Fakülte/Bölüm</strong>: Istanbul Okan Üniversitesi/Mühendsilik Ve Doğa Bilimleri Fakültesi/ Yazılım Mühendisliği (İngilizce)</li>
+<li><strong>Proje Başlığı</strong>: </li>
+<li><strong>Öğrenci</strong>: Fatıma Betül Eroğlu - 220218318</li>
+<li><strong>Danışman</strong>: </li>
+<li><strong>Tarih</strong>: </li>
+<li><strong>Anahtar Kelimeler</strong>: [LLM, Chatbot, Flask, Streamlit, Llama 3, Değerlendirme, Docker, Prometheus, Grafana]</li>
+</ul>
+<hr />
+<h2 id="ozet">Özet</h2>
+<p>Bu çalışma, farklı boyutlardaki Llama 3 modellerinin (Llama 3.1-8b-instant ve Llama 3.3-70b-versatile) performans ve doğruluk açısından karşılaştırmalı analizini amaçlamaktadır. Proje kapsamında, matematik, Türkçe dil becerileri, kodlama, alan özgü sorular ve çeşitli özel senaryolar (uzun bağlam, tutarlılık, kısıtlı üretim vb.) kullanılarak kapsamlı bir değerlendirme yapılmıştır. Sonuçlar, 70B modelinin matematik ve Türkçe görevlerinde daha yüksek doğruluk oranına sahip olduğunu, ancak 8B modelinin daha deterministik ve format uyumlu çıktılar ürettiğini göstermiştir. Sistem mimarisi olarak Flask (backend) ve Streamlit (frontend) kullanılmış, dağıtım ve izleme için Docker, Prometheus ve Grafana entegre edilmiştir. Bu çalışma, LLM tabanlı chatbot sistemlerinde model seçimine yönelik kritik bir rehber sunmayı hedeflemektedir.</p>
+<h2 id="abstract">Abstract</h2>
+<p>This study aims to conduct a comparative analysis of Llama 3 models (Llama 3.1-8b-instant and Llama 3.3-70b-versatile) in terms of performance and accuracy. The project evaluates these models across various domains, including mathematics, Turkish language skills, coding, domain-specific questions, and specialized scenarios (long-context, consistency, constrained generation, etc.). Results indicate that the 70B model achieves higher accuracy in mathematical and Turkish language tasks, while the 8B model produces more deterministic and format-compliant outputs. The system architecture utilizes Flask (backend) and Streamlit (frontend), with Docker, Prometheus, and Grafana integrated for deployment and monitoring. This work provides a critical guide for model selection in LLM-based chatbot systems.</p>
+<h2 id="ksaltmalar-ve-semboller">Kısaltmalar ve Semboller</h2>
+<ul>
+<li><strong>LLM</strong>: Large Language Model</li>
+<li><strong>API</strong>: Application Programming Interface</li>
+</ul>
+<hr />
+<h2 id="giris">Giriş</h2>
+<ul>
+<li><strong>Problem Tanımı</strong>: Büyük dil modellerinin performans ve doğruluk açısından karşılaştırılmasına yönelik sistematik bir çalışma eksikliği.</li>
+<li><strong>Motivasyon</strong>: Farklı model boyutlarının pratik uygulamalardaki etkinliğini anlamak ve kullanıcılar için en uygun model seçimine rehberlik etmek</li>
+<li><strong>Amaç ve Katkılar</strong>: Llama 3 modellerinin çok yönlü bir değerlendirmesini yaparak, performans, doğruluk ve maliyet açısından karşılaştırmalı sonuçlar sunmak.</li>
+<li><strong>Kapsam ve Sınırlar</strong>: Çalışma, Llama 3 modelleri ile sınırlıdır ve özel donanım gerektiren senaryoları kapsamaz.</li>
+<li><strong>Bölüm Organizasyonu</strong>: Çalışma, ilgili çalışmalar, sistem mimarisi, deneyler ve sonuçlar bölümlerinden oluşmaktadır.</li>
+</ul>
+<h2 id="ilgili-calsmalar-ve-arka-plan">İlgili Çalışmalar ve Arka Plan</h2>
+<ul>
+<li><strong>LLM ve Sohbet Sistemleri</strong>: Büyük dil modellerinin gelişimi ve sohbet sistemlerindeki uygulamaları.</li>
+<li><strong>Model Değerlendirme Yöntemleri</strong>: Matematiksel problemler, dil becerileri ve kodlama görevleri üzerinden değerlendirme.</li>
+<li><strong>Ön Uç/Arka Uç Teknolojileri (Streamlit/Flask)</strong>: Kullanıcı arayüzü ve API geliştirme için kullanılan teknolojiler.</li>
+<li><strong>Gözlemlenebilirlik (Prometheus/Grafana)</strong>: Sistem performansının izlenmesi ve görselleştirilmesi.</li>
+</ul>
+<hr />
+<h2 id="sistem-mimarisi">Sistem Mimarisi</h2>
+<ul>
+<li><strong>Genel Bakış</strong>: Sistem, kullanıcı etkileşimi, model çağrıları, değerlendirme ve izleme bileşenlerinden oluşur.</li>
+<li><strong>Bileşenler</strong>:</li>
+<li>Frontend: <code>frontend/streamlit_app.py</code></li>
+<li>Backend API: <code>backend/app.py</code></li>
+<li>Değerlendirme: <code>backend/evals/</code> (ör. <code>suites/</code>, <code>results/</code>)</li>
+<li>Dağıtım: <code>docker-compose.yml</code>, <code>Dockerfile</code>, <code>nginx/nginx.conf</code></li>
+<li>İzleme: <code>monitoring/prometheus.yml</code>, <code>monitoring/grafana/</code></li>
+<li>Depolama/Günlükler: <code>uploads/</code>, <code>logs/</code></li>
+</ul>
+<h3 id="mimari-diyagram">Mimari Diyagram</h3>
+<div class="codehilite"><pre><span></span><code><span class="n">flowchart</span><span class="w"> </span><span class="n">LR</span>
+<span class="w">  </span><span class="n">U</span><span class="p">[</span><span class="s2">&quot;Kullanıcı (Tarayıcı)&quot;</span><span class="p">]</span><span class="w"> </span><span class="o">--&gt;</span><span class="w"> </span><span class="n">S</span><span class="p">[</span><span class="s2">&quot;Streamlit UI (frontend/streamlit_app.py)&quot;</span><span class="p">]</span>
+<span class="w">  </span><span class="n">S</span><span class="w"> </span><span class="o">--&gt;</span><span class="w"> </span><span class="n">A</span><span class="p">[</span><span class="s2">&quot;Flask API (backend/app.py)&quot;</span><span class="p">]</span>
+<span class="w">  </span><span class="n">A</span><span class="w"> </span><span class="o">--&gt;|</span><span class="n">Model</span><span class="w"> </span><span class="err">Ç</span><span class="n">ağrıları</span><span class="o">|</span><span class="w"> </span><span class="n">M</span><span class="p">[</span><span class="s2">&quot;LLM Sağlayıcıları (Llama 3.x)&quot;</span><span class="p">]</span>
+<span class="w">  </span><span class="n">A</span><span class="w"> </span><span class="o">--&gt;</span><span class="w"> </span><span class="n">E</span><span class="p">[</span><span class="s2">&quot;Değerlendirme Suite (backend/evals/)&quot;</span><span class="p">]</span>
+<span class="w">  </span><span class="n">A</span><span class="w"> </span><span class="o">--&gt;</span><span class="w"> </span><span class="n">ST</span><span class="p">[</span><span class="s2">&quot;Depolama (uploads/, logs/)&quot;</span><span class="p">]</span>
+<span class="w">  </span><span class="n">A</span><span class="w"> </span><span class="o">--&gt;</span><span class="w"> </span><span class="n">P</span><span class="p">[</span><span class="s2">&quot;Prometheus Exporter&quot;</span><span class="p">]</span>
+<span class="w">  </span><span class="n">P</span><span class="w"> </span><span class="o">--&gt;</span><span class="w"> </span><span class="n">G</span><span class="p">[</span><span class="s2">&quot;Grafana Dashboard&quot;</span><span class="p">]</span>
+<span class="w">  </span><span class="n">S</span><span class="w"> </span><span class="o">&lt;--&gt;|</span><span class="n">Reverse</span><span class="w"> </span><span class="n">Proxy</span><span class="o">|</span><span class="w"> </span><span class="n">N</span><span class="p">[</span><span class="s2">&quot;Nginx&quot;</span><span class="p">]</span>
+</code></pre></div>
+
+<h3 id="veri-akslar">Veri Akışları</h3>
+<ul>
+<li>İstek Yanıt Akışı: Kullanıcıdan gelen istekler Streamlit arayüzü üzerinden Flask API'ye iletilir ve model yanıtları kullanıcıya döndürülür.</li>
+<li>Oturum ve Bağlam Yönetimi: Kullanıcı oturumları ve bağlam bilgileri oturum boyunca saklanır.</li>
+<li>Dosya/URL/TTS İşleme: Kullanıcı tarafından sağlanan dosya ve URL'ler işlenerek modele iletilir.</li>
+</ul>
+<hr />
+<h2 id="tasarm-kararlar">Tasarım Kararları</h2>
+<ul>
+<li><strong>Model Seçimi</strong>: llama-3.1-8b-instant (hafif ve hızlı) ve llama-3.3-70b-versatile (yüksek doğruluk) modelleri seçilmiştir.</li>
+<li><strong>Token Limit ve Guard Mekanizmaları</strong>: Token sınırlamaları ve güvenlik mekanizmaları uygulanmıştır.</li>
+<li><strong>Güvenlik ve Gizlilik</strong>: API anahtarları ve içerik filtreleri kullanılmıştır.</li>
+<li><strong>Performans Optimizasyonları</strong>: Önbellekleme ve akış (streaming) teknikleri uygulanmıştır.</li>
+</ul>
+<hr />
+<h2 id="uygulama-ayrntlar">Uygulama Ayrıntıları</h2>
+<h3 id="backend-flask-api">Backend (Flask API)</h3>
+<ul>
+<li><strong>Temel Uçlar</strong>: GET/POST endpoint'leri ile sohbet ve değerlendirme işlevleri sağlanır.</li>
+<li><strong>İş Mantığı</strong>: Sohbet akışı, hata yönetimi ve loglama işlemleri gerçekleştirilir.</li>
+<li><strong>Dış Servis Entegrasyonları</strong>: LLM ve TTS servisleri ile entegrasyon sağlanmıştır.</li>
+</ul>
+<h3 id="frontend-streamlit">Frontend (Streamlit)</h3>
+<ul>
+<li><strong>Arayüz Bileşenleri</strong>: Mesaj listesi, model seçici ve ayarlar paneli bulunur.</li>
+<li><strong>Durum Yönetimi</strong>: Oturum durumu (session state) kullanılarak kullanıcı etkileşimi yönetilir.</li>
+<li><strong>Kullanıcı Deneyimi Detayları</strong>:  Kod blokları ve temalar ile kullanıcı deneyimi geliştirilmiştir.</li>
+</ul>
+<h3 id="degerlendirme-evals">Değerlendirme (Evals)</h3>
+<ul>
+<li><strong>Suite’ler</strong>: <code>backend/evals/suites/*.jsonl</code> dosyaları ile test senaryoları tanımlanır.</li>
+<li><strong>Çalıştırma</strong>:
+  <code>bash
+  python backend/evals/run_eval.py [opsiyonlar]</code></li>
+<li><strong>Çıktılar</strong>: <code>backend/evals/results*/</code> ve <code>overview.json</code> dosyaları ile sonuçlar raporlanır. </li>
+</ul>
+<h3 id="izleme-ve-loglama">İzleme ve Loglama</h3>
+<ul>
+<li><strong>Prometheus Metrikleri</strong>:  Sistem performansı ve model yanıt süreleri izlenir.</li>
+<li><strong>Grafana Dashboard’ları</strong>: Metrikler görselleştirilerek analiz edilir.</li>
+<li><strong>Log Formatı ve Tutma Politikası</strong>: Loglar belirli bir formatta saklanır ve belirli bir süre sonra temizlenir.</li>
+</ul>
+<h3 id="dagtm">Dağıtım</h3>
+<ul>
+<li><strong>Yerel Çalıştırma</strong>:
+  <code>bash
+  python -m venv .venv &amp;&amp; source .venv/bin/activate
+  pip install -r requirements.txt
+  pip install -r backend/requirements.txt -r frontend/requirements.txt
+  streamlit run frontend/streamlit_app.py</code></li>
+<li><strong>Docker Compose</strong>:
+  <code>bash
+  docker compose up --build</code></li>
+<li><strong>Nginx ve SSL (Varsa)</strong>: </li>
+</ul>
+<hr />
+<h2 id="deneyler-ve-degerlendirme">Deneyler ve Değerlendirme</h2>
+<ul>
+<li><strong>Araştırma Soruları</strong>: Hangi model daha yüksek doğruluk ve performans sunmaktadır?</li>
+<li><strong>Deney Tasarımı</strong>: Matematik, Türkçe, kodlama ve özel senaryolarda testler yapılmıştır.</li>
+<li><strong>Veri/Kriterler</strong>: Kolay ve zor seviyede sorular, uzun bağlam ve kısıtlı üretim senaryoları.</li>
+<li><strong>Metrikler</strong>: Doğruluk, tutarlılık, gecikme ve token kullanımı.</li>
+<li>
+<p><strong>Sonuçların Sunumu</strong>:</p>
+<table>
+<thead>
+<tr>
+<th>Model</th>
+<th>Doğruluk (Matematik)</th>
+<th>Doğruluk (Türkçe)</th>
+<th>Doğruluk (Kodlama)</th>
+<th>Ortalama Gecikme (ms)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>[Llama 3.1-8B]</td>
+<td>[ 2/10]</td>
+<td>[ 9/10]</td>
+<td>[ 8/10]</td>
+<td>[ 352]</td>
+</tr>
+<tr>
+<td>[Llama 3.3-70B]</td>
+<td>[4+/10]</td>
+<td>[10/10]</td>
+<td>[ 8/10]</td>
+<td>[ 240]</td>
+</tr>
+</tbody>
+</table>
+</li>
+<li>
+<p>Şekiller/Grafikler: [Ekran görüntüleri, Grafana panoları]</p>
+</li>
+<li>Hata Analizi: [Yanlış örnekler ve nedenleri]</li>
+</ul>
+<hr />
+<h2 id="tartsma">Tartışma</h2>
+<ul>
+<li><strong>Bulguların Yorumu</strong>: 70B modeli matematik ve Türkçe görevlerinde daha başarılıdır, ancak 8B modeli daha deterministiktir.</li>
+<li><strong>Güçlü Yönler/Zayıflıklar</strong>: 70B'nin yüksek doğruluğu, 8B'nin düşük maliyeti ve deterministik çıktıları.</li>
+<li><strong>Tehditler ve Sınırlar</strong>: Model boyutunun artmasıyla maliyet ve kaynak kullanımı artmaktadır.</li>
+</ul>
+<h2 id="sonuc-ve-gelecek-calsmalar">Sonuç ve Gelecek Çalışmalar</h2>
+<ul>
+<li><strong>Sonuç</strong>: 70B modeli yüksek doğruluk gerektiren uygulamalar için uygunken, 8B modeli düşük maliyetli ve deterministik çözümler için tercih edilebilir.</li>
+<li><strong>Gelecek Çalışmalar</strong>: Daha fazla modelin karşılaştırılması ve özel senaryoların genişletilmesi.</li>
+</ul>
+<hr />
+<h2 id="kurulum-ve-kullanm-ozet">Kurulum ve Kullanım (Özet)</h2>
+<ul>
+<li><strong>Bağımlılıklar</strong>: <code>requirements.txt</code>, <code>backend/requirements.txt</code>, <code>frontend/requirements.txt</code></li>
+<li><strong>Çevre Değişkenleri</strong>: [API anahtarları, yapılandırmalar]</li>
+<li><strong>Komutlar</strong>:                                                                           </li>
+</ul>
+<p>```bash
+  # Geliştirme
+  streamlit run frontend/streamlit_app.py</p>
+<p># Değerlendirme
+  python backend/evals/run_eval.py</p>
+<p># Dağıtım
+  docker compose up --build
+  ```</p>
+<hr />
+<h2 id="etik-ve-guvenlik">Etik ve Güvenlik</h2>
+<ul>
+<li><strong>Gizlilik ve Veri Koruma</strong>: Kullanıcı verileri şifrelenerek saklanır.</li>
+<li><strong>İçerik Güvenliği</strong>: Zararlı içerik filtreleme mekanizmaları uygulanmıştır.</li>
+<li><strong>Model Yanlılığı ve Riskler</strong>: Modellerin yanlılık potansiyeli değerlendirilmiştir.</li>
+</ul>
+<h2 id="kaynakca">Kaynakça</h2>
+<p>[Standart atıf formatı kullanın. Örn. IEEE/APA.]</p>
+<h2 id="ekler">Ekler</h2>
+<ul>
+<li><strong>Yapılandırma Dosyaları</strong>: <code>docker-compose.yml</code>, <code>nginx/nginx.conf</code>, <code>monitoring/*</code></li>
+<li><strong>Komut Çıktıları</strong>: Değerlendirme sonuçları ve rapor ekran görüntüleri.</li>
+<li><strong>Ek Tablolar/Grafikler</strong>: Performans ve doğruluk grafikleri.</li>
+</ul>
+<hr />
+<h2 id="revizyon-gecmisi-istege-bagl">Revizyon Geçmişi (İsteğe Bağlı)</h2>
+<ul>
+<li>v0.1 – [13.08.2025] – İlk taslak</li>
+<li>v0.2 – [Tarih] – [Değişiklik]</li>
+</ul>
+        </div>
+        
+        <script>
+            function downloadPDF() {
+                window.print();
+            }
+            
+            // Sayfa yüklendiğinde placeholder'ları işaretle
+            document.addEventListener('DOMContentLoaded', function() {
+                const placeholders = document.querySelectorAll('p, li, td');
+                placeholders.forEach(element => {
+                    if (element.textContent.includes('[Doldurulacak]') || 
+                        element.textContent.includes('[Ad Soyad]') ||
+                        element.textContent.includes('[Tarih]')) {
+                        element.classList.add('placeholder');
+                    }
+                });
+            });
+        </script>
+    </body>
+    </html>
+    

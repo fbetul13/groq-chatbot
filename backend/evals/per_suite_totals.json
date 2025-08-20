@@ -1,0 +1,86 @@
+{
+  "base": {
+    "llama-3.1-8b-instant": {
+      "math": 2,
+      "turkish": 9,
+      "coding": 8
+    },
+    "llama-3.3-70b-versatile": {
+      "math": 4,
+      "turkish": 10,
+      "coding": 8
+    }
+  },
+  "domain_specific": {
+    "llama-3.1-8b-instant": {
+      "math": 0,
+      "turkish": 2,
+      "coding": 0
+    },
+    "llama-3.3-70b-versatile": {
+      "math": 1,
+      "turkish": 2,
+      "coding": 0
+    }
+  },
+  "tool_use": {
+    "llama-3.1-8b-instant": {
+      "math": 0,
+      "turkish": 4,
+      "coding": 0
+    },
+    "llama-3.3-70b-versatile": {
+      "math": 0,
+      "turkish": 6,
+      "coding": 0
+    }
+  },
+  "multimodal": {
+    "llama-3.1-8b-instant": {
+      "math": 0,
+      "turkish": 3,
+      "coding": 0
+    },
+    "llama-3.3-70b-versatile": {
+      "math": 0,
+      "turkish": 3,
+      "coding": 0
+    }
+  },
+  "long_context": {
+    "llama-3.1-8b-instant": {
+      "math": 9,
+      "turkish": 0,
+      "coding": 0
+    },
+    "llama-3.3-70b-versatile": {
+      "math": 9,
+      "turkish": 0,
+      "coding": 0
+    }
+  },
+  "consistency": {
+    "llama-3.1-8b-instant": {
+      "math": 2,
+      "turkish": 0,
+      "coding": 0
+    },
+    "llama-3.3-70b-versatile": {
+      "math": 4,
+      "turkish": 0,
+      "coding": 0
+    }
+  },
+  "constrained": {
+    "llama-3.1-8b-instant": {
+      "math": 0,
+      "turkish": 1,
+      "coding": 0
+    },
+    "llama-3.3-70b-versatile": {
+      "math": 0,
+      "turkish": 1,
+      "coding": 0
+    }
+  }
+}

@@ -1,0 +1,132 @@
+{
+  "totals": {
+    "math": 0,
+    "turkish": 1,
+    "coding": 0
+  },
+  "details": [
+    {
+      "id": "CZ01",
+      "category": "turkish",
+      "expected": "hayır",
+      "got": "Hayır.",
+      "correct": false
+    },
+    {
+      "id": "CZ02",
+      "category": "turkish",
+      "expected": "2025",
+      "got": "A: 1234 - Cevap 4 haneli bir rakam.\n\nB: 5678 - Cevap 4 haneli bir rakam.\n\nC: 9012 - Cevap 4 haneli bir rakam.\n\nD: 3456 - Cevap 4 haneli bir rakam.",
+      "correct": false
+    },
+    {
+      "id": "CZ03",
+      "category": "turkish",
+      "expected": "elma",
+      "got": "Elma",
+      "correct": false
+    },
+    {
+      "id": "CZ04",
+      "category": "turkish",
+      "expected": "EVET",
+      "got": "EVET",
+      "correct": false
+    },
+    {
+      "id": "CZ05",
+      "category": "turkish",
+      "expected": "sus",
+      "got": "Ama",
+      "correct": false
+    },
+    {
+      "id": "CZ06",
+      "category": "turkish",
+      "expected": ".",
+      "got": ".",
+      "correct": false
+    },
+    {
+      "id": "CZ07",
+      "category": "turkish",
+      "expected": "armut",
+      "got": "armut",
+      "correct": true
+    },
+    {
+      "id": "CZ08",
+      "category": "turkish",
+      "expected": "1",
+      "got": "0",
+      "correct": false
+    },
+    {
+      "id": "CZ09",
+      "category": "turkish",
+      "expected": "tamam",
+      "got": "A",
+      "correct": false
+    },
+    {
+      "id": "CZ10",
+      "category": "turkish",
+      "expected": "RED",
+      "got": "RED",
+      "correct": false
+    }
+  ],
+  "model": "llama-3.1-8b-instant",
+  "timings": [
+    {
+      "id": "CZ01",
+      "category": "turkish",
+      "latency_sec": 0.2149338722229004
+    },
+    {
+      "id": "CZ02",
+      "category": "turkish",
+      "latency_sec": 0.3499629497528076
+    },
+    {
+      "id": "CZ03",
+      "category": "turkish",
+      "latency_sec": 0.16349577903747559
+    },
+    {
+      "id": "CZ04",
+      "category": "turkish",
+      "latency_sec": 0.18259191513061523
+    },
+    {
+      "id": "CZ05",
+      "category": "turkish",
+      "latency_sec": 0.5558450222015381
+    },
+    {
+      "id": "CZ06",
+      "category": "turkish",
+      "latency_sec": 0.1595151424407959
+    },
+    {
+      "id": "CZ07",
+      "category": "turkish",
+      "latency_sec": 0.15935206413269043
+    },
+    {
+      "id": "CZ08",
+      "category": "turkish",
+      "latency_sec": 0.15602588653564453
+    },
+    {
+      "id": "CZ09",
+      "category": "turkish",
+      "latency_sec": 0.22005772590637207
+    },
+    {
+      "id": "CZ10",
+      "category": "turkish",
+      "latency_sec": 0.17332983016967773
+    }
+  ]
+}

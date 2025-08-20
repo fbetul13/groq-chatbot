@@ -1,0 +1,50 @@
+LLM Performans Değerlendirme Raporu
+
+1) Giriş ve Kapsam
+Bu rapor, Groq üzerinde llama-3.1-8b-instant (kısaca 8B) ve llama-3.3-70b-versatile (kısaca 70B) modellerinin hız, doğruluk, token hız kararlılığı (TPS), deterministiklik, biçim uyumu, çok dilli başarı, alan-özel performans, araç kullanımı, multimodal davranış, uzun-bağlam geri getirme, çıktı tutarlılığı, kısıtlı sözlük/denetimli üretim ve hata/erişilebilirlik metrikleri açısından karşılaştırmasını içerir. Tüm ölçümler, hazırlanan soru setleriyle otomatik olarak koşturulmuş ve sonuçlar kategorik olarak puanlanmıştır.
+
+2) Metodoloji (Özet)
+- Ana set (30): 10 matematik (M01–M10), 10 Türkçe MCQ (T01–T10), 10 kodlama (C01–C10)
+- Ek suite’ler: alan-özel (DS01–DS05), araç kullanımı (TU01–TU06), multimodal (MM01–MM03), uzun-bağlam (LC01–LC10), tutarlılık (CC01–CC04), kısıtlı sözlük (CZ01–CZ10)
+- Doğruluk: tam eşleşme (math/MCQ), kod görevlerinde test çalıştırma; hız: ortalama ve yüzdelikler; TPS: yaklaşık token/s ve oynaklık; deterministiklik: 3 tekrar; biçim uyumu: çıktı format denetimi.
+
+3) Kullanılan Sorular (Başlık Bazında)
+- Matematik (M01–M10): çarpma, kesir toplama (en sade), denklem çözümü (yalnızca x), kombinasyon, olasılık (en sade kesir), üs işlemleri (tek sayı), daire alanı (π=3.14), kökler “2,3”, aritmetik dizi toplamı, log2(128)
+- Türkçe (T01–T10): eş anlam, yazım yanlışı, karşıt anlam, mecaz, fiilimsi, nesne, özne yok, gereksiz sözcük, -miş’li geçmiş, ek fiil
+- Kodlama (C01–C10): reverse_string, is_prime, fibonacci, two_sum, is_palindrome, factorial, are_anagrams, unique_elements, is_brackets_balanced, longest_common_prefix
+- Alan-özel (DS01–DS05): gelir artışı, zam+indirim, öznel yargı, nesne, basit faiz
+- Araç kullanımı (TU01–TU06): araç çağırma kuralları, argüman şeması, belirsiz sonuç, izinsiz dosya, sistem vs araç talimatı, zaman aşımı
+- Multimodal (MM01–MM03): destek yoksa bildirim, görsel yüklenemedi uyarısı, alt yazı/alt metin
+- Uzun-bağlam (LC01–LC10): tek kelime/işaret/kod döndürme (ör. “iğne”, “serinlik”, “ZX-42-TR”)
+- Tutarlılık (CC01–CC04): eşdeğer soru çiftleri (8 ve 24’ün farklı soruluşları)
+- Kısıtlı sözlük (CZ01–CZ10): tek kelime olumsuz, 4 haneli rakam, whitelist seçimi, büyük harf, regex ^[a-z]{3}$, tek karakter, vb.
+
+4) Rapor Karşılaştırma (Kısa Özet)
+- Hız (latency): 8B avg≈0.352s, p50≈0.25s, p95≈0.777s; 70B avg≈0.244s, p50≈0.19s, p95≈0.488s → 70B daha hızlı.
+- Doğruluk (ana set): 8B {math:2, turkish:9, coding:8}; 70B {math:5, turkish:10, coding:8} → 70B daha doğru (özellikle matematik/Türkçe).
+- Token hız kararlılığı (TPS): 8B tps_avg≈70.9, tps_std≈97.2; 70B tps_avg≈75.6, tps_std≈90.3 → 70B biraz daha hızlı ve daha stabil.
+- Deterministiklik (3 tekrar): 8B 30/30; 70B 28/30 → 8B daha deterministik.
+- Biçim uyumu (ana set): 8B 25/30; 70B 22/30 → 8B daha iyi.
+- Çok dilli başarı (proxy Türkçe): 8B 9/10; 70B 10/10 → 70B.
+- Alan-özel (5): 8B math 0/3, tr 2/2; 70B math 1/3, tr 2/2 → 70B sayısalda bir tık önde, dilde eşit.
+- Araç kullanımı (6): 8B 4/6; 70B 6/6 → 70B net üstün.
+- Multimodal (3): 8B 3/3; 70B 3/3 → destek yoksa doğru davranış, ikisi de tam.
+- Uzun-bağlam (10): 8B 9/10; 70B 9/10 → ikisi de güçlü.
+- Çıktı tutarlılığı (4): 8B 2/4; 70B 4/4 → 70B üstün.
+- Kısıtlı sözlük (10): 8B 1/10; 70B 1/10 → sıkı kısıtlar zorlayıcı, regex/şema dayatımı önerilir.
+- Hata/Erişilebilirlik (3 tekrar): İki model de 3/3 tamamladı (test ölçeğinde sorunsuz).
+- Maliyet (genel kıyas): Groq tarifede 8B daha ucuz; 70B daha pahalı. Bütçe odaklı 8B; kalite/hız odaklı 70B.
+
+5) Soru Sayısı Artınca Davranış Nasıl Değişti?
+- Araç kullanımı: 2→6 soru; 8B 2→4, 70B 2→6 — 70B ölçeklendikçe kural uyumunu korudu.
+- Multimodal: 1→3; 8B 1→3, 70B 1→3 — istikrarlı doğru davranış.
+- Uzun-bağlam: 1→3→10; 8B 0→0→9, 70B 0→0→9 — daha fazla örnekle hedefe net yakınsama (needle daha belirgin).
+- Tutarlılık: 2→4; 8B 1→2, 70B 2→4 — 70B artışla birlikte tutarlılığı yükseltiyor.
+- Kısıtlı sözlük: 3→10; iki model de 0→1 — sıkı biçim kısıtları halen zorlayıcı.
+
+6) Soru Bazlı Sonuç (Kaynak)
+Her bir sorunun 8B/70B için tek tek doğru/yanlış durumu “per_question_comparison.txt” dosyasında ✅/❌ ile listelenmiştir:
+/Users/betul/chatbot/backend/evals/per_question_comparison.txt
+
+7) Sonuç ve Öneriler
+Hız ve doğruluk önceliği olan kullanım alanlarında 70B modeli güçlü bir tercih olarak öne çıkmaktadır. Deterministiklik ve biçimsel talimatlara uyumun kritik olduğu senaryalarda 8B avantaj sağlayabilir. Uzun-bağlam senaryolarında her iki model de yeterince örnekle yüksek başarımı yakalamaktadır. Kısıtlı sözlük ve sıkı biçim kısıtları için daha disiplinli şema/regex doğrulaması ve yönerge güçlendirmesi önerilir. Araç kullanımı ve tutarlılık metriklerinde 70B’nin üstünlüğü, kural odaklı iş akışlarında bu modelin tercih edilmesini desteklemektedir.

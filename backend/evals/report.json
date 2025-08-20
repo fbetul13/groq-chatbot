@@ -1,0 +1,209 @@
+{
+  "totals": {
+    "math": 10,
+    "turkish": 10,
+    "coding": 10
+  },
+  "details": [
+    {
+      "id": "M01",
+      "category": "math",
+      "expected": "888",
+      "got": "888",
+      "correct": true
+    },
+    {
+      "id": "M02",
+      "category": "math",
+      "expected": "13/10",
+      "got": "13/10",
+      "correct": true
+    },
+    {
+      "id": "M03",
+      "category": "math",
+      "expected": "9",
+      "got": "9",
+      "correct": true
+    },
+    {
+      "id": "M04",
+      "category": "math",
+      "expected": "220",
+      "got": "220",
+      "correct": true
+    },
+    {
+      "id": "M05",
+      "category": "math",
+      "expected": "5/14",
+      "got": "5/14",
+      "correct": true
+    },
+    {
+      "id": "M06",
+      "category": "math",
+      "expected": "16",
+      "got": "16",
+      "correct": true
+    },
+    {
+      "id": "M07",
+      "category": "math",
+      "expected": "153.86",
+      "got": "153.86",
+      "correct": true
+    },
+    {
+      "id": "M08",
+      "category": "math",
+      "expected": "2,3",
+      "got": "2,3",
+      "correct": true
+    },
+    {
+      "id": "M09",
+      "category": "math",
+      "expected": "650",
+      "got": "650",
+      "correct": true
+    },
+    {
+      "id": "M10",
+      "category": "math",
+      "expected": "7",
+      "got": "7",
+      "correct": true
+    },
+    {
+      "id": "T01",
+      "category": "turkish",
+      "expected": "A",
+      "got": "A",
+      "correct": true
+    },
+    {
+      "id": "T02",
+      "category": "turkish",
+      "expected": "C",
+      "got": "C",
+      "correct": true
+    },
+    {
+      "id": "T03",
+      "category": "turkish",
+      "expected": "B",
+      "got": "B",
+      "correct": true
+    },
+    {
+      "id": "T04",
+      "category": "turkish",
+      "expected": "B",
+      "got": "B",
+      "correct": true
+    },
+    {
+      "id": "T05",
+      "category": "turkish",
+      "expected": "B",
+      "got": "B",
+      "correct": true
+    },
+    {
+      "id": "T06",
+      "category": "turkish",
+      "expected": "B",
+      "got": "B",
+      "correct": true
+    },
+    {
+      "id": "T07",
+      "category": "turkish",
+      "expected": "B",
+      "got": "B",
+      "correct": true
+    },
+    {
+      "id": "T08",
+      "category": "turkish",
+      "expected": "A",
+      "got": "A",
+      "correct": true
+    },
+    {
+      "id": "T09",
+      "category": "turkish",
+      "expected": "B",
+      "got": "B",
+      "correct": true
+    },
+    {
+      "id": "T10",
+      "category": "turkish",
+      "expected": "C",
+      "got": "C",
+      "correct": true
+    },
+    {
+      "id": "C01",
+      "category": "coding",
+      "messages": [],
+      "correct": true
+    },
+    {
+      "id": "C02",
+      "category": "coding",
+      "messages": [],
+      "correct": true
+    },
+    {
+      "id": "C03",
+      "category": "coding",
+      "messages": [],
+      "correct": true
+    },
+    {
+      "id": "C04",
+      "category": "coding",
+      "messages": [],
+      "correct": true
+    },
+    {
+      "id": "C05",
+      "category": "coding",
+      "messages": [],
+      "correct": true
+    },
+    {
+      "id": "C06",
+      "category": "coding",
+      "messages": [],
+      "correct": true
+    },
+    {
+      "id": "C07",
+      "category": "coding",
+      "messages": [],
+      "correct": true
+    },
+    {
+      "id": "C08",
+      "category": "coding",
+      "messages": [],
+      "correct": true
+    },
+    {
+      "id": "C09",
+      "category": "coding",
+      "messages": [],
+      "correct": true
+    },
+    {
+      "id": "C10",
+      "category": "coding",
+      "messages": [],
+      "correct": true
+    }
+  ]
+}

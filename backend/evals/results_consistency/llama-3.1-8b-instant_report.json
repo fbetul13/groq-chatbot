@@ -1,0 +1,60 @@
+{
+  "totals": {
+    "math": 2,
+    "turkish": 0,
+    "coding": 0
+  },
+  "details": [
+    {
+      "id": "CC01",
+      "category": "math",
+      "expected": "8",
+      "got": "8",
+      "correct": true
+    },
+    {
+      "id": "CC02",
+      "category": "math",
+      "expected": "8",
+      "got": "24 / 3 = 8",
+      "correct": false
+    },
+    {
+      "id": "CC03",
+      "category": "math",
+      "expected": "24",
+      "got": "8 * 3 = 24",
+      "correct": false
+    },
+    {
+      "id": "CC04",
+      "category": "math",
+      "expected": "24",
+      "got": "24/1",
+      "correct": true
+    }
+  ],
+  "model": "llama-3.1-8b-instant",
+  "timings": [
+    {
+      "id": "CC01",
+      "category": "math",
+      "latency_sec": 0.2032759189605713
+    },
+    {
+      "id": "CC02",
+      "category": "math",
+      "latency_sec": 0.20035409927368164
+    },
+    {
+      "id": "CC03",
+      "category": "math",
+      "latency_sec": 0.1679089069366455
+    },
+    {
+      "id": "CC04",
+      "category": "math",
+      "latency_sec": 0.3441050052642822
+    }
+  ]
+}

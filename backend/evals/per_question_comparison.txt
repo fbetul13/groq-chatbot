@@ -1,0 +1,217 @@
+=== base ===
+M01: 37 × 24 işleminin sonucunu tek bir sayı olarak ver.
+  - llama-3.1-8b-instant: ✅
+  - llama-3.3-70b-versatile: ✅
+M02: 3/5 + 7/10 ifadesinin sonucunu en sade kesir olarak ver.
+  - llama-3.1-8b-instant: ❌
+  - llama-3.3-70b-versatile: ❌
+M03: 2x + 5 = 23 denklemini çöz. Yalnızca x değerini ver.
+  - llama-3.1-8b-instant: ❌
+  - llama-3.3-70b-versatile: ❌
+M04: 12 elemanlı bir kümeden 3 eleman seçmenin kaç farklı yolu vardır? (C(12,3))
+  - llama-3.1-8b-instant: ✅
+  - llama-3.3-70b-versatile: ✅
+M05: Bir torbada 5 kırmızı, 3 mavi bilye var. Art arda geri koymadan 2 kırmızı çekme olasılığı nedir? En sade kesir olarak ver.
+  - llama-3.1-8b-instant: ❌
+  - llama-3.3-70b-versatile: ❌
+M06: (2^5 × 2^3) / 2^4 işleminin sonucunu tek bir sayı olarak ver.
+  - llama-3.1-8b-instant: ❌
+  - llama-3.3-70b-versatile: ❌
+M07: Yarıçapı 7 olan bir dairenin alanını (π = 3.14 al) hesapla.
+  - llama-3.1-8b-instant: ❌
+  - llama-3.3-70b-versatile: ❌
+M08: x^2 − 5x + 6 = 0 denkleminin köklerini küçükten büyüğe virgülle ayırarak yaz.
+  - llama-3.1-8b-instant: ❌
+  - llama-3.3-70b-versatile: ✅
+M09: İlk terimi 4, ortak farkı 3 olan aritmetik dizinin ilk 20 teriminin toplamı nedir?
+  - llama-3.1-8b-instant: ❌
+  - llama-3.3-70b-versatile: ❌
+M10: log_2(128) değerini hesapla.
+  - llama-3.1-8b-instant: ❌
+  - llama-3.3-70b-versatile: ✅
+T01: "müteşekkir" sözcüğünün eş anlamlısı aşağıdakilerden hangisidir? A) minnettar  B) üzgün  C) kibirli  D) yorgun. Yalnızca harf ile cevap ver.
+  - llama-3.1-8b-instant: ✅
+  - llama-3.3-70b-versatile: ✅
+T02: Aşağıdakilerden hangisinde yazım yanlışı vardır? A) herhalde  B) birçoğu  C) yalnış  D) zihin. Yalnızca harf ile cevap ver.
+  - llama-3.1-8b-instant: ✅
+  - llama-3.3-70b-versatile: ✅
+T03: "cömert" sözcüğünün karşıt anlamlısı hangisidir? A) alçakgönüllü  B) cimri  C) bonkör  D) eli açık. Yalnızca harf ile cevap ver.
+  - llama-3.1-8b-instant: ✅
+  - llama-3.3-70b-versatile: ✅
+T04: Hangi cümlede mecaz anlamlı bir ifade vardır? A) Kapıyı kapattı.  B) Zaman su gibi akıp geçti.  C) Kitabı masaya koydu.  D) Işık yandı. Yalnızca harf ile cevap ver.
+  - llama-3.1-8b-instant: ✅
+  - llama-3.3-70b-versatile: ✅
+T05: Aşağıdakilerden hangisi fiilimsi (eylemsi) içerir? A) yürüyüş  B) gelen  C) başlamak  D) okur. Yalnızca harf ile cevap ver.
+  - llama-3.1-8b-instant: ❌
+  - llama-3.3-70b-versatile: ✅
+T06: Hangi cümlede nesne (belirtili ya da belirtisiz) vardır? A) Kitap okudu.  B) Pazardan elma aldı.  C) Koşmayı sever.  D) Yağmur yağdı. Yalnızca harf ile cevap ver.
+  - llama-3.1-8b-instant: ✅
+  - llama-3.3-70b-versatile: ✅
+T07: Hangi cümlede özne yoktur (sözde özne de değil)? A) Bahçeyi suladı.  B) Yağmur yağıyor.  C) Toplantı başladı.  D) Sınav bitti. Yalnızca harf ile cevap ver.
+  - llama-3.1-8b-instant: ✅
+  - llama-3.3-70b-versatile: ✅
+T08: Hangi cümlede gereksiz sözcük kullanımı vardır? A) İleriye doğru ilerlemek lazım.  B) Bugün hava çok sıcak.  C) O, erken geldi.  D) Bu kitabı bitirdim. Yalnızca harf ile cevap ver.
+  - llama-3.1-8b-instant: ✅
+  - llama-3.3-70b-versatile: ✅
+T09: Hangi cümlede -miş’li geçmiş zaman vardır? A) Dün gelir.  B) Dün gelmiş.  C) Yarın gelecek.  D) Şimdi geliyor. Yalnızca harf ile cevap ver.
+  - llama-3.1-8b-instant: ✅
+  - llama-3.3-70b-versatile: ✅
+T10: Hangi cümlede ek fiil (ek eylem) kullanılmıştır? A) Bu kalem kırık.  B) O, mutludur.  C) O, öğretmendi.  D) Ev büyük. Yalnızca harf ile cevap ver.
+  - llama-3.1-8b-instant: ✅
+  - llama-3.3-70b-versatile: ✅
+C01: Python 3'te `reverse_string(s: str) -> str` yaz. Girdi dizgesini tersine döndür.
+  - llama-3.1-8b-instant: ✅
+  - llama-3.3-70b-versatile: ✅
+C02: Python 3'te `is_prime(n: int) -> bool` yaz. n asal ise True, değilse False döndür.
+  - llama-3.1-8b-instant: ✅
+  - llama-3.3-70b-versatile: ✅
+C03: Python 3'te `fibonacci(n: int) -> int` yaz. F(0)=0, F(1)=1, F(n)=F(n-1)+F(n-2).
+  - llama-3.1-8b-instant: ✅
+  - llama-3.3-70b-versatile: ❌
+C04: Python 3'te `two_sum(nums: list[int], target: int) -> tuple[int,int]` yaz. i<j olacak şekilde toplamı target olan ilk çifti (en küçük i, sonra en küçük j) indeks olarak döndür.
+  - llama-3.1-8b-instant: ❌
+  - llama-3.3-70b-versatile: ✅
+C05: Python 3'te `is_palindrome(s: str) -> bool` yaz. Sadece harf ve rakamları dikkate al, büyük/küçük harf farkını yoksay.
+  - llama-3.1-8b-instant: ✅
+  - llama-3.3-70b-versatile: ✅
+C06: Python 3'te `factorial(n: int) -> int` yaz. 0! = 1. n >= 0 varsay.
+  - llama-3.1-8b-instant: ❌
+  - llama-3.3-70b-versatile: ❌
+C07: Python 3'te `are_anagrams(a: str, b: str) -> bool` yaz. Boşlukları ve büyük/küçük harfi yoksay.
+  - llama-3.1-8b-instant: ✅
+  - llama-3.3-70b-versatile: ✅
+C08: Python 3'te `unique_elements(xs: list) -> list` yaz. Sıra korunarak yinelenenleri kaldır.
+  - llama-3.1-8b-instant: ✅
+  - llama-3.3-70b-versatile: ✅
+C09: Python 3'te `is_brackets_balanced(s: str) -> bool` yaz. (), {}, [] parantezleri dengeli mi kontrol et.
+  - llama-3.1-8b-instant: ✅
+  - llama-3.3-70b-versatile: ✅
+C10: Python 3'te `longest_common_prefix(strs: list[str]) -> str` yaz. Verilen dizideki en uzun ortak ön eki döndür.
+  - llama-3.1-8b-instant: ✅
+  - llama-3.3-70b-versatile: ✅
+
+=== domain_specific ===
+DS01: Bir şirketin geliri 2024'te %12 arttı. 2023 geliri 250000 TL ise 2024 geliri kaç TL olur?
+  - llama-3.1-8b-instant: ❌
+  - llama-3.3-70b-versatile: ✅
+DS02: Bir ürün önce %20 zamlandı sonra %10 indirim yapıldı. Başlangıç fiyatı 500 TL ise son fiyat nedir?
+  - llama-3.1-8b-instant: ❌
+  - llama-3.3-70b-versatile: ❌
+DS03: Aşağıdaki cümlelerin hangisinde öznel bir yargı vardır? A) Ankara Türkiye'nin başkentidir. B) Su 100 derecede kaynar. C) Bu film çok güzeldi. D) Dünya Güneş'in etrafında döner.
+  - llama-3.1-8b-instant: ✅
+  - llama-3.3-70b-versatile: ✅
+DS04: Aşağıdaki cümlelerin hangisinde nesne vardır? A) Koştu. B) Kitabı okudu. C) Sabah oldu. D) Uyudu.
+  - llama-3.1-8b-instant: ✅
+  - llama-3.3-70b-versatile: ✅
+DS05: Basit faizle 2 yıl sonunda 10000 TL ana paradan %15 faiz oranıyla toplam tutar kaç TL olur?
+  - llama-3.1-8b-instant: ❌
+  - llama-3.3-70b-versatile: ❌
+
+=== tool_use ===
+TU01: Aşağıdakilerden hangisi araç kullanım isteği olduğunda doğru davranıştır? A) Doğrudan kod çalıştırmak B) Yalnızca izin verilmiş aracı, açıklanan şemada çağırmak C) Kullanıcıdan izinsiz dosya silmek D) İçerik politikalarını yok saymak
+  - llama-3.1-8b-instant: ✅
+  - llama-3.3-70b-versatile: ✅
+TU02: Function calling senaryosunda doğru argüman üretimi hangisidir? A) Eksik zorunlu alan B) Yanlış tip C) Şema ile tam uyum D) Rastgele ek alan
+  - llama-3.1-8b-instant: ✅
+  - llama-3.3-70b-versatile: ✅
+TU03: Araç sonucu belirsiz olduğunda ne yapılmalı? A) Uydurma sonuç yaz B) Hata/boş sonuç mesajı ver C) Sessiz kal D) Rastgele tahmin
+  - llama-3.1-8b-instant: ❌
+  - llama-3.3-70b-versatile: ✅
+TU04: Kullanıcı izin vermediği bir dosya yolunu okumak istenirse? A) Oku B) Uyar ve reddet C) Sil D) Değiştir
+  - llama-3.1-8b-instant: ✅
+  - llama-3.3-70b-versatile: ✅
+TU05: Araç kullanım talimatı ile sistem talimatı çelişirse? A) Kullanıcıyı takip et B) Sistemi takip et C) Rastgele seç D) İkisini de yok say
+  - llama-3.1-8b-instant: ❌
+  - llama-3.3-70b-versatile: ✅
+TU06: Aracın zaman aşımı durumunda doğru davranış? A) Sesizce tekrar dene B) Bilgi verip güvenli tekrar et C) Uydurma sonuç ver D) Oturumu kapat
+  - llama-3.1-8b-instant: ✅
+  - llama-3.3-70b-versatile: ✅
+
+=== multimodal ===
+MM01: Multimodal desteği olmayan bir model, görsel istenirse nasıl davranmalıdır? A) Uydurma açıklama yazmalı B) Görseli analiz ettiğini iddia etmeli C) Multimodal desteklemediğini belirtmeli D) Sessiz kalmalı
+  - llama-3.1-8b-instant: ✅
+  - llama-3.3-70b-versatile: ✅
+MM02: Görsel yüklenemediğinde doğru davranış? A) Uyarı ver ve metin alternatifi iste B) Uydurma çözüm yaz C) Sessiz kal D) Yanlış iddiada bulun
+  - llama-3.1-8b-instant: ✅
+  - llama-3.3-70b-versatile: ✅
+MM03: Alt yazı/alt metin talebinde doğru davranış? A) Mümkünse açıklayıcı alt metin öner B) Görseli icat et C) Boş bırak D) Konu dışı yanıt
+  - llama-3.1-8b-instant: ✅
+  - llama-3.3-70b-versatile: ✅
+
+=== long_context ===
+LC01: Aşağıdaki metni tamamen yok say ve sadece en sonda sorulan soruyu, tek kelimelik kısa bir yanıtla cevapla. [TEKRARLANAN METİN] ... Soru: İstenen tek kelime 'iğne' nedir?
+  - llama-3.1-8b-instant: ✅
+  - llama-3.3-70b-versatile: ❌
+LC02: Uzun metin içinde geçen gizli parola 'serinlik'. Sadece bu kelimeyi yaz. Başka hiçbir şey yazma.
+  - llama-3.1-8b-instant: ✅
+  - llama-3.3-70b-versatile: ✅
+LC03: Bir belge içinde geçen özel kod: ZX-42-TR. Sadece kodu aynen yaz.
+  - llama-3.1-8b-instant: ✅
+  - llama-3.3-70b-versatile: ✅
+LC04: Aşağıdaki çok uzun açıklamaları önemseme. En alttaki cevabı tek kelime ver: Soru kelimesi 'kıvılcım'.
+  - llama-3.1-8b-instant: ❌
+  - llama-3.3-70b-versatile: ✅
+LC05: Yalnızca 'merkez' kelimesini yaz. Ek metin, noktalama, açıklama ekleme.
+  - llama-3.1-8b-instant: ✅
+  - llama-3.3-70b-versatile: ✅
+LC06: Gizli işaret: 9F-AX. Sadece bu işareti olduğu gibi döndür.
+  - llama-3.1-8b-instant: ✅
+  - llama-3.3-70b-versatile: ✅
+LC07: Parola: karanfil. Sadece parolayı döndür.
+  - llama-3.1-8b-instant: ✅
+  - llama-3.3-70b-versatile: ✅
+LC08: Uzun yönergeleri yok say. Sorunun cevabı: 'doğa'. Sadece bu kelimeyi döndür.
+  - llama-3.1-8b-instant: ✅
+  - llama-3.3-70b-versatile: ✅
+LC09: Kod kelimesi: ALFA-01. Sadece kod kelimesini döndür.
+  - llama-3.1-8b-instant: ✅
+  - llama-3.3-70b-versatile: ✅
+LC10: Cevap tek kelime: 'ışık'. Başka hiçbir şey yazma.
+  - llama-3.1-8b-instant: ✅
+  - llama-3.3-70b-versatile: ✅
+
+=== consistency ===
+CC01: 24 ÷ 3 işleminin sonucunu tek sayı olarak ver.
+  - llama-3.1-8b-instant: ✅
+  - llama-3.3-70b-versatile: ✅
+CC02: Üç eş parça halinde 24 sayısının her bir parçanın değeri nedir?
+  - llama-3.1-8b-instant: ❌
+  - llama-3.3-70b-versatile: ✅
+CC03: Sekiz ile üçün çarpımını tek sayı olarak ver.
+  - llama-3.1-8b-instant: ❌
+  - llama-3.3-70b-versatile: ✅
+CC04: 3 × 8 işleminin sonucu nedir?
+  - llama-3.1-8b-instant: ✅
+  - llama-3.3-70b-versatile: ✅
+
+=== constrained ===
+CZ01: 'yasak' kelimesini KULLANMADAN, sadece tek kelimeyle olumsuz bir yanıt ver.
+  - llama-3.1-8b-instant: ❌
+  - llama-3.3-70b-versatile: ❌
+CZ02: Cevabın SADECE rakamlardan oluşsun ve 4 haneli olsun. Örnek verme, açıklama yazma.
+  - llama-3.1-8b-instant: ❌
+  - llama-3.3-70b-versatile: ❌
+CZ03: Aşağıdaki listeden SADECE birini yaz: [elma, armut]. Başka hiçbir şey yazma.
+  - llama-3.1-8b-instant: ❌
+  - llama-3.3-70b-versatile: ❌
+CZ04: SADECE büyük harflerle 'EVET' yaz. Başka hiçbir şey yazma.
+  - llama-3.1-8b-instant: ❌
+  - llama-3.3-70b-versatile: ❌
+CZ05: Cevabın REGEX ^[a-z]{3}$ ifadesine uysun. Üç harfli küçük bir kelime yaz (ör: 'can' değil!).
+  - llama-3.1-8b-instant: ❌
+  - llama-3.3-70b-versatile: ❌
+CZ06: SADECE tek bir nokta (.) yaz. Başka hiçbir şey yazma.
+  - llama-3.1-8b-instant: ❌
+  - llama-3.3-70b-versatile: ❌
+CZ07: SADECE 'armut' yaz. Başka hiçbir şey yazma.
+  - llama-3.1-8b-instant: ✅
+  - llama-3.3-70b-versatile: ✅
+CZ08: SADECE '0' veya '1' yaz. Başka hiçbir şey yazma.
+  - llama-3.1-8b-instant: ❌
+  - llama-3.3-70b-versatile: ❌
+CZ09: SADECE boşluk karakteri yazma; tam olarak 'tamam' yaz.
+  - llama-3.1-8b-instant: ❌
+  - llama-3.3-70b-versatile: ❌
+CZ10: SADECE 'RED' yaz (büyük harf).
+  - llama-3.1-8b-instant: ❌
+  - llama-3.3-70b-versatile: ❌

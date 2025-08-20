@@ -1,0 +1,48 @@
+{
+  "totals": {
+    "math": 0,
+    "turkish": 3,
+    "coding": 0
+  },
+  "details": [
+    {
+      "id": "MM01",
+      "category": "turkish",
+      "expected": "C",
+      "got": "C) Multimodal desteklemediğini belirtmeli",
+      "correct": true
+    },
+    {
+      "id": "MM02",
+      "category": "turkish",
+      "expected": "A",
+      "got": "A) Uyarı ver ve metin alternatifi iste",
+      "correct": true
+    },
+    {
+      "id": "MM03",
+      "category": "turkish",
+      "expected": "A",
+      "got": "A) Mümkünse açıklayıcı alt metin öner",
+      "correct": true
+    }
+  ],
+  "model": "llama-3.1-8b-instant",
+  "timings": [
+    {
+      "id": "MM01",
+      "category": "turkish",
+      "latency_sec": 0.2805969715118408
+    },
+    {
+      "id": "MM02",
+      "category": "turkish",
+      "latency_sec": 0.20472121238708496
+    },
+    {
+      "id": "MM03",
+      "category": "turkish",
+      "latency_sec": 0.18545889854431152
+    }
+  ]
+}

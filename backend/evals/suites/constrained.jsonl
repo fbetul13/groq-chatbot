@@ -1,0 +1,10 @@
+{"id":"CZ01","category":"turkish","type":"text","prompt":"'yasak' kelimesini KULLANMADAN, sadece tek kelimeyle olumsuz bir yanıt ver.","reference_answer":"hayır"}
+{"id":"CZ02","category":"turkish","type":"text","prompt":"Cevabın SADECE rakamlardan oluşsun ve 4 haneli olsun. Örnek verme, açıklama yazma.","reference_answer":"2025"}
+{"id":"CZ03","category":"turkish","type":"text","prompt":"Aşağıdaki listeden SADECE birini yaz: [elma, armut]. Başka hiçbir şey yazma.","reference_answer":"elma"}
+{"id":"CZ04","category":"turkish","type":"text","prompt":"SADECE büyük harflerle 'EVET' yaz. Başka hiçbir şey yazma.","reference_answer":"EVET"}
+{"id":"CZ05","category":"turkish","type":"text","prompt":"Cevabın REGEX ^[a-z]{3}$ ifadesine uysun. Üç harfli küçük bir kelime yaz (ör: 'can' değil!).","reference_answer":"sus"}
+{"id":"CZ06","category":"turkish","type":"text","prompt":"SADECE tek bir nokta (.) yaz. Başka hiçbir şey yazma.","reference_answer":"."}
+{"id":"CZ07","category":"turkish","type":"text","prompt":"SADECE 'armut' yaz. Başka hiçbir şey yazma.","reference_answer":"armut"}
+{"id":"CZ08","category":"turkish","type":"text","prompt":"SADECE '0' veya '1' yaz. Başka hiçbir şey yazma.","reference_answer":"1"}
+{"id":"CZ09","category":"turkish","type":"text","prompt":"SADECE boşluk karakteri yazma; tam olarak 'tamam' yaz.","reference_answer":"tamam"}
+{"id":"CZ10","category":"turkish","type":"text","prompt":"SADECE 'RED' yaz (büyük harf).","reference_answer":"RED"}

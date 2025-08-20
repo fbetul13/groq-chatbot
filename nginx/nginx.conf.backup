@@ -158,7 +158,7 @@ http {
     }
 
     # HTTPS server (optional - requires SSL certificates)
-    server {
+    # server {
     #     listen 443 ssl http2;
     #     server_name localhost;
     #     
@@ -169,5 +169,5 @@ http {
     #     ssl_prefer_server_ciphers off;
     #     
     #     # Same location blocks as above
-    }
+    # }
 } 

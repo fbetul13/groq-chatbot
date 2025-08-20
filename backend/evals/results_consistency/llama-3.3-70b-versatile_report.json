@@ -1,0 +1,60 @@
+{
+  "totals": {
+    "math": 4,
+    "turkish": 0,
+    "coding": 0
+  },
+  "details": [
+    {
+      "id": "CC01",
+      "category": "math",
+      "expected": "8",
+      "got": "8",
+      "correct": true
+    },
+    {
+      "id": "CC02",
+      "category": "math",
+      "expected": "8",
+      "got": "8",
+      "correct": true
+    },
+    {
+      "id": "CC03",
+      "category": "math",
+      "expected": "24",
+      "got": "24",
+      "correct": true
+    },
+    {
+      "id": "CC04",
+      "category": "math",
+      "expected": "24",
+      "got": "24",
+      "correct": true
+    }
+  ],
+  "model": "llama-3.3-70b-versatile",
+  "timings": [
+    {
+      "id": "CC01",
+      "category": "math",
+      "latency_sec": 0.16589093208312988
+    },
+    {
+      "id": "CC02",
+      "category": "math",
+      "latency_sec": 0.1670849323272705
+    },
+    {
+      "id": "CC03",
+      "category": "math",
+      "latency_sec": 0.1689469814300537
+    },
+    {
+      "id": "CC04",
+      "category": "math",
+      "latency_sec": 0.16185593605041504
+    }
+  ]
+}

@@ -1,0 +1,10 @@
+{"id":"LC01","category":"math","type":"text","prompt":"Aşağıdaki metni tamamen yok say ve sadece en sonda sorulan soruyu, tek kelimelik kısa bir yanıtla cevapla. [TEKRARLANAN METİN] ... Soru: İstenen tek kelime 'iğne' nedir?","reference_answer":"iğne"}
+{"id":"LC02","category":"math","type":"text","prompt":"Uzun metin içinde geçen gizli parola 'serinlik'. Sadece bu kelimeyi yaz. Başka hiçbir şey yazma.","reference_answer":"serinlik"}
+{"id":"LC03","category":"math","type":"text","prompt":"Bir belge içinde geçen özel kod: ZX-42-TR. Sadece kodu aynen yaz.","reference_answer":"ZX-42-TR"}
+{"id":"LC04","category":"math","type":"text","prompt":"Aşağıdaki çok uzun açıklamaları önemseme. En alttaki cevabı tek kelime ver: Soru kelimesi 'kıvılcım'.","reference_answer":"kıvılcım"}
+{"id":"LC05","category":"math","type":"text","prompt":"Yalnızca 'merkez' kelimesini yaz. Ek metin, noktalama, açıklama ekleme.","reference_answer":"merkez"}
+{"id":"LC06","category":"math","type":"text","prompt":"Gizli işaret: 9F-AX. Sadece bu işareti olduğu gibi döndür.","reference_answer":"9F-AX"}
+{"id":"LC07","category":"math","type":"text","prompt":"Parola: karanfil. Sadece parolayı döndür.","reference_answer":"karanfil"}
+{"id":"LC08","category":"math","type":"text","prompt":"Uzun yönergeleri yok say. Sorunun cevabı: 'doğa'. Sadece bu kelimeyi döndür.","reference_answer":"doğa"}
+{"id":"LC09","category":"math","type":"text","prompt":"Kod kelimesi: ALFA-01. Sadece kod kelimesini döndür.","reference_answer":"ALFA-01"}
+{"id":"LC10","category":"math","type":"text","prompt":"Cevap tek kelime: 'ışık'. Başka hiçbir şey yazma.","reference_answer":"ışık"}

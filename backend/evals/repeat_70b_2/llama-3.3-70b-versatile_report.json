@@ -1,0 +1,368 @@
+{
+  "totals": {
+    "math": 4,
+    "turkish": 10,
+    "coding": 8
+  },
+  "details": [
+    {
+      "id": "M01",
+      "category": "math",
+      "expected": "888",
+      "got": "888",
+      "correct": true
+    },
+    {
+      "id": "M02",
+      "category": "math",
+      "expected": "13/10",
+      "got": "19/10",
+      "correct": false
+    },
+    {
+      "id": "M03",
+      "category": "math",
+      "expected": "9",
+      "got": "9/2",
+      "correct": false
+    },
+    {
+      "id": "M04",
+      "category": "math",
+      "expected": "220",
+      "got": "220",
+      "correct": true
+    },
+    {
+      "id": "M05",
+      "category": "math",
+      "expected": "5/14",
+      "got": "2/5 * 3/7 = 6/35",
+      "correct": false
+    },
+    {
+      "id": "M06",
+      "category": "math",
+      "expected": "16",
+      "got": "2^5 = 32, 2^3 = 8, 2^4 = 16\n32 * 8 = 256\n256 / 16 = 16",
+      "correct": false
+    },
+    {
+      "id": "M07",
+      "category": "math",
+      "expected": "153.86",
+      "got": "3.14 * 7 * 7 \n3.14 * 49 \n153.86",
+      "correct": false
+    },
+    {
+      "id": "M08",
+      "category": "math",
+      "expected": "2,3",
+      "got": "2,3",
+      "correct": true
+    },
+    {
+      "id": "M09",
+      "category": "math",
+      "expected": "650",
+      "got": "20*(4+73)/2\n20*77/2\n20*38.5\n770",
+      "correct": false
+    },
+    {
+      "id": "M10",
+      "category": "math",
+      "expected": "7",
+      "got": "7",
+      "correct": true
+    },
+    {
+      "id": "T01",
+      "category": "turkish",
+      "expected": "A",
+      "got": "A",
+      "correct": true
+    },
+    {
+      "id": "T02",
+      "category": "turkish",
+      "expected": "C",
+      "got": "C)",
+      "correct": true
+    },
+    {
+      "id": "T03",
+      "category": "turkish",
+      "expected": "B",
+      "got": "B",
+      "correct": true
+    },
+    {
+      "id": "T04",
+      "category": "turkish",
+      "expected": "B",
+      "got": "B",
+      "correct": true
+    },
+    {
+      "id": "T05",
+      "category": "turkish",
+      "expected": "B",
+      "got": "B)",
+      "correct": true
+    },
+    {
+      "id": "T06",
+      "category": "turkish",
+      "expected": "B",
+      "got": "B",
+      "correct": true
+    },
+    {
+      "id": "T07",
+      "category": "turkish",
+      "expected": "B",
+      "got": "B",
+      "correct": true
+    },
+    {
+      "id": "T08",
+      "category": "turkish",
+      "expected": "A",
+      "got": "A",
+      "correct": true
+    },
+    {
+      "id": "T09",
+      "category": "turkish",
+      "expected": "B",
+      "got": "B",
+      "correct": true
+    },
+    {
+      "id": "T10",
+      "category": "turkish",
+      "expected": "C",
+      "got": "C)",
+      "correct": true
+    },
+    {
+      "id": "C01",
+      "category": "coding",
+      "messages": [],
+      "correct": true
+    },
+    {
+      "id": "C02",
+      "category": "coding",
+      "messages": [],
+      "correct": true
+    },
+    {
+      "id": "C03",
+      "category": "coding",
+      "messages": [
+        "Test 2 başarısız. args=[7] kwargs={} beklenen=13 alınan=Exception: name 'fibonacci' is not defined",
+        "Test 3 başarısız. args=[10] kwargs={} beklenen=55 alınan=Exception: name 'fibonacci' is not defined"
+      ],
+      "correct": false
+    },
+    {
+      "id": "C04",
+      "category": "coding",
+      "messages": [],
+      "correct": true
+    },
+    {
+      "id": "C05",
+      "category": "coding",
+      "messages": [],
+      "correct": true
+    },
+    {
+      "id": "C06",
+      "category": "coding",
+      "messages": [
+        "Test 2 başarısız. args=[5] kwargs={} beklenen=120 alınan=Exception: name 'factorial' is not defined",
+        "Test 3 başarısız. args=[7] kwargs={} beklenen=5040 alınan=Exception: name 'factorial' is not defined"
+      ],
+      "correct": false
+    },
+    {
+      "id": "C07",
+      "category": "coding",
+      "messages": [],
+      "correct": true
+    },
+    {
+      "id": "C08",
+      "category": "coding",
+      "messages": [],
+      "correct": true
+    },
+    {
+      "id": "C09",
+      "category": "coding",
+      "messages": [],
+      "correct": true
+    },
+    {
+      "id": "C10",
+      "category": "coding",
+      "messages": [],
+      "correct": true
+    }
+  ],
+  "model": "llama-3.3-70b-versatile",
+  "timings": [
+    {
+      "id": "M01",
+      "category": "math",
+      "latency_sec": 0.37160491943359375
+    },
+    {
+      "id": "M02",
+      "category": "math",
+      "latency_sec": 0.17244315147399902
+    },
+    {
+      "id": "M03",
+      "category": "math",
+      "latency_sec": 0.1708660125732422
+    },
+    {
+      "id": "M04",
+      "category": "math",
+      "latency_sec": 2.229721784591675
+    },
+    {
+      "id": "M05",
+      "category": "math",
+      "latency_sec": 2.2544219493865967
+    },
+    {
+      "id": "M06",
+      "category": "math",
+      "latency_sec": 2.325650930404663
+    },
+    {
+      "id": "M07",
+      "category": "math",
+      "latency_sec": 2.30497407913208
+    },
+    {
+      "id": "M08",
+      "category": "math",
+      "latency_sec": 2.2501189708709717
+    },
+    {
+      "id": "M09",
+      "category": "math",
+      "latency_sec": 2.2973639965057373
+    },
+    {
+      "id": "M10",
+      "category": "math",
+      "latency_sec": 2.2519772052764893
+    },
+    {
+      "id": "T01",
+      "category": "turkish",
+      "latency_sec": 2.251315116882324
+    },
+    {
+      "id": "T02",
+      "category": "turkish",
+      "latency_sec": 2.232257127761841
+    },
+    {
+      "id": "T03",
+      "category": "turkish",
+      "latency_sec": 2.2382168769836426
+    },
+    {
+      "id": "T04",
+      "category": "turkish",
+      "latency_sec": 2.226940870285034
+    },
+    {
+      "id": "T05",
+      "category": "turkish",
+      "latency_sec": 2.234973907470703
+    },
+    {
+      "id": "T06",
+      "category": "turkish",
+      "latency_sec": 2.3941948413848877
+    },
+    {
+      "id": "T07",
+      "category": "turkish",
+      "latency_sec": 2.224381923675537
+    },
+    {
+      "id": "T08",
+      "category": "turkish",
+      "latency_sec": 2.2182397842407227
+    },
+    {
+      "id": "T09",
+      "category": "turkish",
+      "latency_sec": 2.2443490028381348
+    },
+    {
+      "id": "T10",
+      "category": "turkish",
+      "latency_sec": 2.2353909015655518
+    },
+    {
+      "id": "C01",
+      "category": "coding",
+      "latency_sec": 2.2504358291625977
+    },
+    {
+      "id": "C02",
+      "category": "coding",
+      "latency_sec": 2.4440319538116455
+    },
+    {
+      "id": "C03",
+      "category": "coding",
+      "latency_sec": 2.286595106124878
+    },
+    {
+      "id": "C04",
+      "category": "coding",
+      "latency_sec": 2.5260396003723145
+    },
+    {
+      "id": "C05",
+      "category": "coding",
+      "latency_sec": 2.275343894958496
+    },
+    {
+      "id": "C06",
+      "category": "coding",
+      "latency_sec": 2.2666449546813965
+    },
+    {
+      "id": "C07",
+      "category": "coding",
+      "latency_sec": 2.367377996444702
+    },
+    {
+      "id": "C08",
+      "category": "coding",
+      "latency_sec": 2.6134438514709473
+    },
+    {
+      "id": "C09",
+      "category": "coding",
+      "latency_sec": 2.3358540534973145
+    },
+    {
+      "id": "C10",
+      "category": "coding",
+      "latency_sec": 2.309731960296631
+    }
+  ]
+}

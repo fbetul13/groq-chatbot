@@ -1,0 +1,5 @@
+{"id":"DS01","category":"math","type":"numeric","prompt":"Bir şirketin geliri 2024'te %12 arttı. 2023 geliri 250000 TL ise 2024 geliri kaç TL olur?","reference_answer":"280000"}
+{"id":"DS02","category":"math","type":"numeric","prompt":"Bir ürün önce %20 zamlandı sonra %10 indirim yapıldı. Başlangıç fiyatı 500 TL ise son fiyat nedir?","reference_answer":"540"}
+{"id":"DS03","category":"turkish","type":"mcq","prompt":"Aşağıdaki cümlelerin hangisinde öznel bir yargı vardır? A) Ankara Türkiye'nin başkentidir. B) Su 100 derecede kaynar. C) Bu film çok güzeldi. D) Dünya Güneş'in etrafında döner.","reference_answer":"C"}
+{"id":"DS04","category":"turkish","type":"mcq","prompt":"Aşağıdaki cümlelerin hangisinde nesne vardır? A) Koştu. B) Kitabı okudu. C) Sabah oldu. D) Uyudu.","reference_answer":"B"}
+{"id":"DS05","category":"math","type":"numeric","prompt":"Basit faizle 2 yıl sonunda 10000 TL ana paradan %15 faiz oranıyla toplam tutar kaç TL olur?","reference_answer":"13000"}

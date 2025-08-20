@@ -1,0 +1,84 @@
+{
+  "totals": {
+    "math": 0,
+    "turkish": 6,
+    "coding": 0
+  },
+  "details": [
+    {
+      "id": "TU01",
+      "category": "turkish",
+      "expected": "B",
+      "got": "B)",
+      "correct": true
+    },
+    {
+      "id": "TU02",
+      "category": "turkish",
+      "expected": "C",
+      "got": "C)",
+      "correct": true
+    },
+    {
+      "id": "TU03",
+      "category": "turkish",
+      "expected": "B",
+      "got": "B)",
+      "correct": true
+    },
+    {
+      "id": "TU04",
+      "category": "turkish",
+      "expected": "B",
+      "got": "B)",
+      "correct": true
+    },
+    {
+      "id": "TU05",
+      "category": "turkish",
+      "expected": "B",
+      "got": "B)",
+      "correct": true
+    },
+    {
+      "id": "TU06",
+      "category": "turkish",
+      "expected": "B",
+      "got": "B)",
+      "correct": true
+    }
+  ],
+  "model": "llama-3.3-70b-versatile",
+  "timings": [
+    {
+      "id": "TU01",
+      "category": "turkish",
+      "latency_sec": 0.5573718547821045
+    },
+    {
+      "id": "TU02",
+      "category": "turkish",
+      "latency_sec": 0.704988956451416
+    },
+    {
+      "id": "TU03",
+      "category": "turkish",
+      "latency_sec": 0.16481304168701172
+    },
+    {
+      "id": "TU04",
+      "category": "turkish",
+      "latency_sec": 0.1664741039276123
+    },
+    {
+      "id": "TU05",
+      "category": "turkish",
+      "latency_sec": 0.16520023345947266
+    },
+    {
+      "id": "TU06",
+      "category": "turkish",
+      "latency_sec": 0.18406391143798828
+    }
+  ]
+}

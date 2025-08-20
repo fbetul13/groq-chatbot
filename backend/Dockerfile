@@ -7,10 +7,10 @@ ENV PYTHONDONTWRITEBYTECODE=1
 ENV FLASK_APP=app.py
 ENV FLASK_ENV=production
 
-# Install system dependencies
+# Install system dependencies (ARM64 compatible)
 RUN apt-get update && apt-get install -y \
     curl \
-    libgl1-mesa-glx \
+    xclip \
     libglib2.0-0 \
     libsm6 \
     libxext6 \

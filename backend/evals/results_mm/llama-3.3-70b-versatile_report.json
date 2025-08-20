@@ -1,0 +1,48 @@
+{
+  "totals": {
+    "math": 0,
+    "turkish": 3,
+    "coding": 0
+  },
+  "details": [
+    {
+      "id": "MM01",
+      "category": "turkish",
+      "expected": "C",
+      "got": "C)",
+      "correct": true
+    },
+    {
+      "id": "MM02",
+      "category": "turkish",
+      "expected": "A",
+      "got": "A)",
+      "correct": true
+    },
+    {
+      "id": "MM03",
+      "category": "turkish",
+      "expected": "A",
+      "got": "A",
+      "correct": true
+    }
+  ],
+  "model": "llama-3.3-70b-versatile",
+  "timings": [
+    {
+      "id": "MM01",
+      "category": "turkish",
+      "latency_sec": 0.1868429183959961
+    },
+    {
+      "id": "MM02",
+      "category": "turkish",
+      "latency_sec": 0.1754159927368164
+    },
+    {
+      "id": "MM03",
+      "category": "turkish",
+      "latency_sec": 0.17223906517028809
+    }
+  ]
+}
