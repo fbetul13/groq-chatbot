@@ -3110,7 +3110,7 @@ if not is_authenticated:
             if login_submitted:
                 if login_username and login_password:
                     if login_user(login_username, login_password):
-                        st.experimental_rerun()
+                        st.rerun()
                 else:
                     st.warning("Kullanıcı adı ve şifre gerekli.")
 
@@ -3128,7 +3128,7 @@ if not is_authenticated:
                     st.warning("Şifreler eşleşmiyor.")
                 else:
                     if register_user(register_username, register_password, register_email):
-                        st.experimental_rerun()
+                        st.rerun()
 
     # API URL ayarı (giriş ekranında da göster)
     st.markdown("---")
@@ -4304,7 +4304,7 @@ else:
                     
                     with col1:
                         # Bu bot mesajını tekrar oluştur butonu
-                        if st.button("🔄", key=f"regenerate_{i}", help="Bu yanıtı tekrar oluştur", use_container_width=True):
+                        if st.button("🔄", key=f"regenerate_{i}", help="Bu soruyu tekrar sor.", use_container_width=True):
                             # Bu bot mesajını tekrar oluştur
                             if i > 0 and st.session_state.messages[i-1]["role"] == "user":
                                 original_message = st.session_state.messages[i-1]["content"]
@@ -4321,6 +4321,7 @@ else:
                                 st.success("✅")
                             except ImportError:
                                 st.info("📋")
+
                     
                     with col3:
                         # TTS butonu (küçük)
@@ -4384,6 +4385,7 @@ else:
                     with col4:
                         # Boş alan
                         st.markdown("")
+
 
     # Mesaj düzenleme formu
     if hasattr(st.session_state, 'editing_message_index') and st.session_state.editing_message_index is not None:
@@ -4598,7 +4600,11 @@ else:
                     st.session_state.auto_scroll = True
                 
                 else:
-                    handle_api_error("http_error", f"HTTP {response.status_code}", response)
+                    # 429 için özel durum: hız limiti mesajını kullanıcıya göster
+                    if response.status_code == 429:
+                        handle_api_error("rate_limit", f"HTTP 429: rate limit", response)
+                    else:
+                        handle_api_error("http_error", f"HTTP {response.status_code}", response)
                     
             except requests.exceptions.Timeout:
                 handle_api_error("timeout", "Yanıt zaman aşımına uğradı")

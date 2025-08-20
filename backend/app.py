@@ -5,6 +5,11 @@ from flask_limiter.util import get_remote_address
 import os
 from dotenv import load_dotenv
 from groq import Groq
+try:
+    # Groq Rate Limit hatalarını ayrı yakalamak için
+    from groq import RateLimitError  # type: ignore
+except Exception:  # Eski sürümlerde sınıf farklı olabilir, yoksa generic except çalışır
+    RateLimitError = Exception  # type: ignore
 import json
 import sqlite3
 from datetime import datetime, timedelta
@@ -1708,6 +1713,15 @@ Responda em português:]"""
             'token_info': token_check
         })
         
+    except RateLimitError as e:
+        # Groq token/istek limitleri aşıldığında 429 dön
+        logger.warning(
+            f"Rate limit: {str(e)} - user_id={user_id}, username={username}, session_id={session_id} - IP: {request.remote_addr}"
+        )
+        return jsonify({
+            'error': 'Rate limit aşıldı. Lütfen daha sonra tekrar deneyin.',
+            'details': str(e)
+        }), 429
     except Exception as e:
         logger.error(f"Chat error: {str(e)} - user_id={user_id}, username={username}, session_id={session_id} - IP: {request.remote_addr} - Traceback: {traceback.format_exc()}")
         return jsonify({'error': str(e)}), 500
