@@ -1615,9 +1615,61 @@ Responda em português:]"""
         token_check = check_token_limit(messages, max_tokens, model)
         print(f"Token kontrolü: {token_check}")
         
-        # Eğer kritik seviyede ise uyarı ver ama devam et
+        # Eğer kritik seviyede ise, güvenli hale getirmek için geçmişi kırp ve max_tokens'u ayarla
         if token_check["warning_level"] == "critical":
             print(f"⚠️ KRİTİK: {token_check['warning_message']}")
+            try:
+                # Kullanıcının istediği değeri korumak için hedefi ayrı değişkende tut
+                requested_max_tokens = max_tokens
+                available_for_output = max(0, token_check.get("available_tokens", 0))
+
+                # Gerekirse en eski kullanıcı/asistan mesajlarını çıkararak bağlamı küçült
+                # Sistem mesajı (varsa) ve en son kullanıcı mesajı korunur
+                def trim_history(msgs):
+                    # İlk eleman sistem olabilir, onu mümkünse koru
+                    start_index = 1 if msgs and msgs[0].get("role") == "system" else 0
+                    # En sondaki mesaj son kullanıcı mesajı (enhanced_user_message) olduğundan onu koru
+                    end_index = len(msgs) - 1
+                    # Trimlenebilir aralık
+                    return start_index, end_index
+
+                safety_counter = 0
+                while safety_counter < 50:
+                    safety_counter += 1
+                    # Hedef: kullanıcının istediği token çıktısı kadar alan açmak
+                    check = check_token_limit(messages, requested_max_tokens, model)
+                    if check.get("available_tokens", 0) >= requested_max_tokens:
+                        token_check = check
+                        break
+                    si, ei = trim_history(messages)
+                    # Kırpılabilir bir mesaj yoksa döngüden çık
+                    if ei - si <= 0:
+                        token_check = check
+                        break
+                    # En eski kırpılabilir mesajı kaldır
+                    del messages[si]
+                else:
+                    token_check = check_token_limit(messages, requested_max_tokens, model)
+
+                # Son durumda kullanılabilir alana göre max_tokens'u belirle
+                final_available = max(0, token_check.get("available_tokens", 0))
+                if final_available > 0:
+                    new_max_tokens = max(64, min(requested_max_tokens, final_available))
+                    if new_max_tokens != max_tokens:
+                        print(f"max_tokens {max_tokens} -> {new_max_tokens} olarak güncellendi")
+                    max_tokens = new_max_tokens
+                else:
+                    msg = (
+                        "Mesaj ve sohbet geçmişi modelin bağlam sınırını aşıyor. "
+                        "Lütfen mesajınızı kısaltın veya yeni bir oturum başlatın."
+                    )
+                    logger.warning(f"Chat token limit overflow: user_id={user_id}, session_id={session_id}, model={model}")
+                    return jsonify({
+                        'error': msg,
+                        'token_info': token_check
+                    }), 400
+            except Exception as _token_safe_err:
+                print(f"Token güvenlik işleyicisinde hata: {_token_safe_err}")
         
         # Groq API'ye istek gönder
         chat_completion = client.chat.completions.create(
